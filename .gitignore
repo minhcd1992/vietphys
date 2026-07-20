@@ -6,6 +6,7 @@ backend/venv/
 backend/__pycache__/
 __pycache__/
 *.pyc
+*.log
 
 # Bỏ qua cơ sở dữ liệu nội bộ
 *.db
