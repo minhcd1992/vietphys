@@ -49,7 +49,7 @@ Với chuyển động có gia tốc không đổi, ta có 4 phương trình cơ
 
 #align(center)[
   #v(8pt)
-  #image("/img/hinh3.png", width: 80%)
+  #image("/vietphys-package/img/hinh3.png", width: 80%)
   #v(8pt)
 ]
 
@@ -83,7 +83,7 @@ Với chuyển động có gia tốc không đổi, ta có 4 phương trình cơ
     
     #align(center)[
       #v(8pt)
-      #image("/img/hinh2.png", width: 70%)
+      #image("/vietphys-package/img/hinh2.png", width: 70%)
       #v(8pt)
     ]
   ],
@@ -280,7 +280,7 @@ Vậy gia tốc tối thiểu máy bay cần có là $2.78 "m/s"^2$.
     
     #align(center)[
       #v(8pt)
-      #image("/img/hinh1.png", width: 70%)
+      #image("/vietphys-package/img/hinh1.png", width: 70%)
       #v(8pt)
     ]
   ],
