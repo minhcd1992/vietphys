@@ -20,8 +20,7 @@
 
 #align(center)[
   #v(8pt)
-  // The source image is currently empty, so render the built-in placeholder.
-  #image("img/placeholder-free-fall-vacuum.png", width: 70%)
+  #image("img/free_fall_vacuum.png", width: 70%)
   #v(8pt)
 ]
 
@@ -99,8 +98,7 @@ Vì đây là chuyển động thẳng biến đổi đều, ta dùng lại toà
 
     #align(center)[
       #v(8pt)
-      // hot_air_balloon.png is not present in img yet.
-      #image("img/placeholder-hot-air-balloon.png", width: 70%)
+      #image("/vietphys-package/img/hot_air_balloon.png", width: 70%)
       #v(8pt)
     ]
   ],
