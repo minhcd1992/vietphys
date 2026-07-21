@@ -25,6 +25,29 @@
 }
 
 // -----------------------------------------------------------------
+// [ GỌI ẢNH DỄ DÀNG — KHÔNG CẦN NHỚ ĐƯỜNG DẪN NỮA ]
+// -----------------------------------------------------------------
+// LỖI GỐC: các file nội dung (bai4.typ, demo.typ...) đang tự viết đường
+// dẫn tới ảnh theo nhiều kiểu khác nhau ("img/...", "/vietphys-package/img/...")
+// trong khi ảnh thật lại nằm ở "core/img/" — không khớp với bất kỳ kiểu
+// nào cả, nên luôn báo lỗi "file not found" (dù rất khó nhận ra chỉ nhìn
+// thông báo lỗi, vì Typst không nói "sai vị trí", chỉ nói "không tìm thấy").
+//
+// CÁCH SỬA TẬN GỐC: viết đường dẫn tương đối NGAY BÊN TRONG utils.typ
+// này — Typst phân giải đường dẫn tương đối theo vị trí của FILE ĐỊNH
+// NGHĨA lệnh gọi, không phải theo file nào gọi tới nó. Vì "img/" là thư
+// mục con nằm NGAY CẠNH chính utils.typ (cùng trong "core/"), viết như
+// dưới đây sẽ LUÔN đúng, bất kể vp-image() được gọi từ bai4.typ, demo.typ,
+// hay bất kỳ file nào khác sau này thêm vào dự án — không cần biết file
+// gọi nó nằm ở đâu, không cần đường dẫn tuyệt đối, không cần đoán root.
+//
+// Cách dùng — chỉ cần tên file, không cần đường dẫn:
+//   #vp-image("free_fall_vacuum.png", width: 70%)
+//   #vp-image("placeholder_hot_air_balloon.png", width: 70%)  // vẫn tự
+//   động nhận diện chữ "placeholder" nhờ đi qua image() đã override ở trên
+#let vp-image(name, ..args) = image("../img/" + name, ..args)
+
+// -----------------------------------------------------------------
 // [ HÀM XỬ LÝ ĐẠI LƯỢNG VẬT LÝ & ĐƠN VỊ CỰC MẠNH ]
 // -----------------------------------------------------------------
 #let vp-qty(val, unit) = {

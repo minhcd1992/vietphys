@@ -20,7 +20,7 @@
 
 #align(center)[
   #v(8pt)
-  #image("img/free_fall_vacuum.png", width: 70%)
+  #vp-image("hinh1.png", width: 70%)
   #v(8pt)
 ]
 
@@ -98,7 +98,7 @@ Vì đây là chuyển động thẳng biến đổi đều, ta dùng lại toà
 
     #align(center)[
       #v(8pt)
-      #image("/img/placeholder_hot_air_balloon.png", width: 70%)
+      #vp-image("hinh1.png", width: 70%)
       #v(8pt)
     ]
   ],
