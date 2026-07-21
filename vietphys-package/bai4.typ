@@ -98,7 +98,7 @@ Vì đây là chuyển động thẳng biến đổi đều, ta dùng lại toà
 
     #align(center)[
       #v(8pt)
-      #image("/vietphys-package/img/hot_air_balloon.png", width: 70%)
+      #image("/img/placeholder_hot_air_balloon.png", width: 70%)
       #v(8pt)
     ]
   ],
