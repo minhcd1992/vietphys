@@ -1,33 +1,47 @@
 import { create } from 'zustand';
 import { v4 as uuidv4 } from 'uuid';
-import { BuilderNode, ContainerNode, SectionNode, ModuleNode, RowNode } from '../types/builder';
 
-interface BuilderState {
-  rootNode: ContainerNode;
-  selectedNodeId: string | null; // <--- TRẠNG THÁI MỚI: LƯU KHỐI ĐANG ĐƯỢC CHỌN
+export type ElementType = 'Container' | 'Widget';
 
-  setSelectedNode: (id: string | null) => void; // <--- ACTION MỚI
-  updateNodeProps: (id: string, newProps: any) => void;
-  removeNode: (id: string) => void;
-  addNode: (parentId: string, newNode: SectionNode | RowNode | ModuleNode, index?: number) => void;
-  reorderChildren: (parentId: string, startIndex: number, endIndex: number) => void;
+export interface BuilderNode {
+  id: string;
+  type: ElementType;
+  moduleName: string;
+  properties: {
+    // 1. Tab Content
+    title?: string;
+    content?: string;
+    num?: string;
+    boxType?: string;
+    // 2. Tab Style
+    color?: string;
+    bg?: string;
+    // 3. Tab Advanced (Flexbox, Margin, Padding)
+    direction?: 'row' | 'column';
+    gap?: string;
+    padding?: string;
+    margin?: string;
+    border?: string;
+    radius?: string;
+    [key: string]: any;
+  };
+  children?: BuilderNode[];
 }
 
-const mapTree = (node: BuilderNode, targetId: string, updater: (n: BuilderNode) => BuilderNode | null): BuilderNode | null => {
-  if (node.id === targetId) return updater(node);
-  if ('children' in node && node.children) {
-    const newChildren = node.children
-      .map(child => mapTree(child, targetId, updater))
-      .filter((child): child is BuilderNode => child !== null);
-    return { ...node, children: newChildren } as BuilderNode;
-  }
-  return node;
-};
+interface BuilderState {
+  rootNode: BuilderNode;
+  selectedNodeId: string | null;
+  setSelectedNode: (id: string | null) => void;
+  updateNodeProps: (id: string, newProps: any) => void;
+  removeNode: (id: string) => void;
+  addNode: (parentId: string, newNode: Partial<BuilderNode>, index?: number) => void;
+  moveNode: (sourceId: string, destinationParentId: string, destIndex: number) => void;
+}
 
-// Thuật toán đệ quy để tìm một Node dựa vào ID
+// Thuật toán đệ quy tìm Node
 const findNode = (node: BuilderNode, targetId: string): BuilderNode | null => {
   if (node.id === targetId) return node;
-  if ('children' in node && node.children) {
+  if (node.children) {
     for (const child of node.children) {
       const found = findNode(child, targetId);
       if (found) return found;
@@ -36,11 +50,15 @@ const findNode = (node: BuilderNode, targetId: string): BuilderNode | null => {
   return null;
 };
 
-export const useBuilderStore = create<BuilderState>((set, get) => ({
+export const useBuilderStore = create<BuilderState>((set) => ({
   rootNode: {
-    id: 'root-container',
+    id: 'root-canvas',
     type: 'Container',
-    properties: { title: 'ĐỀ KIỂM TRA MÔN VẬT LÝ', subtitle: 'Thời gian làm bài: 45 phút', paperSize: 'a4' },
+    moduleName: 'Page',
+    properties: { 
+      paperSize: 'a4', margin: '1.5cm', font: 'Times New Roman', fontSize: '12pt',
+      direction: 'column', gap: '15pt', padding: '0pt' // Thuộc tính của Page gốc
+    },
     children: []
   },
   selectedNodeId: null,
@@ -48,49 +66,92 @@ export const useBuilderStore = create<BuilderState>((set, get) => ({
   setSelectedNode: (id) => set({ selectedNodeId: id }),
 
   updateNodeProps: (id, newProps) => set((state) => {
-    const updatedRoot = mapTree(state.rootNode, id, (node) => ({
-      ...node,
-      properties: { ...node.properties, ...newProps }
-    }));
-    return { rootNode: updatedRoot as ContainerNode };
+    const newRoot = JSON.parse(JSON.stringify(state.rootNode)); // Deep Clone an toàn
+    const node = findNode(newRoot, id);
+    if (node) {
+      node.properties = { ...node.properties, ...newProps };
+    }
+    return { rootNode: newRoot };
   }),
 
   removeNode: (id) => set((state) => {
-    if (id === 'root-container') return state;
-    const updatedRoot = mapTree(state.rootNode, id, () => null);
-    // Nếu xóa đúng node đang chọn thì reset bảng thuộc tính
-    return { rootNode: updatedRoot as ContainerNode, selectedNodeId: state.selectedNodeId === id ? null : state.selectedNodeId };
+    if (id === 'root-canvas') return state;
+    const newRoot = JSON.parse(JSON.stringify(state.rootNode));
+
+    const removeRecursive = (node: BuilderNode) => {
+      if (node.children) {
+        const idx = node.children.findIndex(c => c.id === id);
+        if (idx !== -1) {
+          node.children.splice(idx, 1);
+          return true;
+        }
+        for (const child of node.children) {
+          if (removeRecursive(child)) return true;
+        }
+      }
+      return false;
+    };
+    removeRecursive(newRoot);
+
+    return { rootNode: newRoot, selectedNodeId: state.selectedNodeId === id ? null : state.selectedNodeId };
   }),
 
   addNode: (parentId, newNode, index) => set((state) => {
-    const nodeToAdd = { ...newNode, id: newNode.id || uuidv4() };
-    const updatedRoot = mapTree(state.rootNode, parentId, (node) => {
-      if ('children' in node) {
-        const children = [...node.children];
-        if (index !== undefined && index >= 0) children.splice(index, 0, nodeToAdd as any);
-        else children.push(nodeToAdd as any);
-        return { ...node, children } as BuilderNode;
+    const newRoot = JSON.parse(JSON.stringify(state.rootNode));
+    const nodeToAdd: BuilderNode = {
+      id: uuidv4(),
+      type: newNode.type || 'Widget',
+      moduleName: newNode.moduleName || 'Text',
+      properties: newNode.properties || {},
+      children: newNode.children
+    };
+    
+    const parentNode = findNode(newRoot, parentId);
+    if (parentNode && parentNode.type === 'Container') {
+      if (!parentNode.children) parentNode.children = [];
+      if (index !== undefined && index >= 0) {
+        parentNode.children.splice(index, 0, nodeToAdd);
+      } else {
+        parentNode.children.push(nodeToAdd);
       }
-      return node;
-    });
-    return { rootNode: updatedRoot as ContainerNode, selectedNodeId: nodeToAdd.id }; // Tự động chọn khối vừa thêm
+    }
+    return { rootNode: newRoot, selectedNodeId: nodeToAdd.id };
   }),
 
-  reorderChildren: (parentId, startIndex, endIndex) => set((state) => {
-    const updatedRoot = mapTree(state.rootNode, parentId, (node) => {
-      if ('children' in node && node.children) {
-        const newChildren = Array.from(node.children);
-        const [removed] = newChildren.splice(startIndex, 1);
-        newChildren.splice(endIndex, 0, removed);
-        return { ...node, children: newChildren } as BuilderNode;
+  moveNode: (sourceId, destinationParentId, destIndex) => set((state) => {
+    const newRoot = JSON.parse(JSON.stringify(state.rootNode));
+
+    // 1. Cắt Node ra khỏi vị trí cũ
+    let nodeToMove: BuilderNode | null = null;
+    const removeRecursive = (node: BuilderNode) => {
+      if (node.children) {
+        const idx = node.children.findIndex(c => c.id === sourceId);
+        if (idx !== -1) {
+          nodeToMove = node.children[idx];
+          node.children.splice(idx, 1);
+          return true;
+        }
+        for (const child of node.children) {
+          if (removeRecursive(child)) return true;
+        }
       }
-      return node;
-    });
-    return { rootNode: updatedRoot as ContainerNode };
-  }),
+      return false;
+    };
+    removeRecursive(newRoot);
+
+    if (!nodeToMove) return state;
+
+    // 2. Gắn Node vào vị trí mới
+    const parentNode = findNode(newRoot, destinationParentId);
+    if (parentNode && parentNode.type === 'Container') {
+      if (!parentNode.children) parentNode.children = [];
+      parentNode.children.splice(destIndex, 0, nodeToMove);
+    }
+
+    return { rootNode: newRoot };
+  })
 }));
 
-// Export thêm hàm hook nhỏ để lấy node đang được chọn
 export const useSelectedNode = () => {
   const { rootNode, selectedNodeId } = useBuilderStore();
   if (!selectedNodeId) return null;
