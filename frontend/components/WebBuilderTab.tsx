@@ -39,13 +39,13 @@ const TOOLBOX_ITEMS = [
   { type: "Widget", moduleName: "Section", icon: "fas fa-bookmark", defaultProps: { num: "1", title: "TIÊU ĐỀ PHẦN", color: "#1890FF", width: "100%" } },
   { type: "Widget", moduleName: "Form", icon: "fas fa-tasks", defaultProps: { num: "1", title: "Tên dạng bài", color: "#FF3B1D", width: "100%" } },
   { type: "Widget", moduleName: "Box", icon: "fas fa-lightbulb", defaultProps: { boxType: "warning", title: "Chú ý", content: "Nội dung ghi chú...", width: "100%" } },
-  { type: "Widget", moduleName: "Text", icon: "fas fa-font", defaultProps: { content: "Nhập văn bản thuần túy...", align: "left", fontSize: "12", fontUnit: "pt", fontWeight: "regular", color: "#000000", width: "100%" } },
-  { type: "Widget", moduleName: "Image", icon: "fas fa-image", defaultProps: { content: "placeholder_hinh_1.png", width: "70" } },
+  { type: "Widget", moduleName: "Text", icon: "fas fa-font", defaultProps: { content: "Nhập văn bản *tại đây*...", align: "center", fontSize: "12", fontUnit: "pt", fontWeight: "regular", color: "#000000", width: "100%" } },
+  { type: "Widget", moduleName: "Image", icon: "fas fa-image", defaultProps: { content: "placeholder_hinh_1.png", width: "70%" } },
   { type: "Widget", moduleName: "Icon", icon: "fas fa-star", defaultProps: { iconName: "fa-star", color: "#1890FF", fontSize: "16", fontUnit: "pt", align: "center", width: "auto" } },
 ];
 
 // =====================================================================
-// 3. UI COMPONENTS (COLOR PICKER, SPINNER, 4-WAY SPACING)
+// 3. UI COMPONENTS (ACCORDION, SPINNER, COLOR)
 // =====================================================================
 const Accordion = ({ title, children, defaultOpen = false }: any) => {
   const [isOpen, setIsOpen] = useState(defaultOpen);
@@ -59,7 +59,6 @@ const Accordion = ({ title, children, defaultOpen = false }: any) => {
   );
 }
 
-// Bảng màu chuẩn đã fix lỗi che khuất
 const ColorControl = ({ label, value, onChange }: any) => {
   const getHex = (v: string) => {
     if (!v || v === 'none') return '#ffffff';
@@ -83,7 +82,6 @@ const ColorControl = ({ label, value, onChange }: any) => {
   );
 };
 
-// Ô nhập số có nút mũi tên (Spinner) & kéo thanh trượt
 const NumberUnitControl = ({ label, value, onChange, min=0, max=100 }: any) => {
   const num = value ? parseFloat(value) : "";
   const unit = value?.toString().replace(/[0-9.-]/g, '') || 'pt';
@@ -103,7 +101,6 @@ const NumberUnitControl = ({ label, value, onChange, min=0, max=100 }: any) => {
   );
 };
 
-// Bảng nhập 4 chiều độc lập (Margin/Padding/Radius)
 const FourWaySpacing = ({ label, prefix, properties, onChange, isRadius = false }: any) => {
   const [unit, setUnit] = useState('pt');
   const parseVal = (v: string) => v ? parseFloat(v) : '';
@@ -136,7 +133,7 @@ const FourWaySpacing = ({ label, prefix, properties, onChange, isRadius = false 
           <input type="number" value={parseVal(properties[prefix])} onChange={(e) => {
             const v = e.target.value;
             onChange(prefix, v ? `${v}${unit}` : '');
-            items.forEach(i => onChange(`${prefix}${i.k}`, v ? `${v}${unit}` : '')); // Đồng bộ 4 ô nếu đang link
+            items.forEach(i => onChange(`${prefix}${i.k}`, v ? `${v}${unit}` : ''));
           }} className="w-full border p-1.5 text-xs rounded text-center outline-none focus:border-blue-500 font-mono [&::-webkit-inner-spin-button]:opacity-100" />
         </div>
       ) : (
@@ -154,6 +151,64 @@ const FourWaySpacing = ({ label, prefix, properties, onChange, isRadius = false 
 };
 
 // =====================================================================
+// MINI RICH-TEXT EDITOR CHO TEXT WIDGET
+// =====================================================================
+const MiniRichTextEditor = ({ value, onChange }: any) => {
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
+
+  const insertText = (prefix: string, suffix: string = '') => {
+    const textarea = textareaRef.current;
+    if (!textarea) return;
+    const start = textarea.selectionStart;
+    const end = textarea.selectionEnd;
+    const text = value || '';
+    const before = text.substring(0, start);
+    const selected = text.substring(start, end);
+    const after = text.substring(end);
+    
+    onChange(before + prefix + selected + suffix + after);
+    setTimeout(() => {
+      textarea.focus();
+      textarea.setSelectionRange(start + prefix.length, start + prefix.length + selected.length);
+    }, 0);
+  };
+
+  return (
+    <div className="border border-gray-300 rounded-md focus-within:border-blue-500 overflow-hidden">
+      {/* TOOLBAR */}
+      <div className="flex bg-gray-50 border-b border-gray-200 p-1 gap-1 items-center">
+        <button onClick={() => insertText('*', '*')} className="w-7 h-7 hover:bg-gray-200 rounded text-gray-700 font-bold" title="In đậm (Bold)"><i className="fas fa-bold"></i></button>
+        <button onClick={() => insertText('_', '_')} className="w-7 h-7 hover:bg-gray-200 rounded text-gray-700 italic" title="In nghiêng (Italic)"><i className="fas fa-italic"></i></button>
+        <div className="w-px h-4 bg-gray-300 mx-1"></div>
+        <button onClick={() => insertText('\n#line(length: 60%, stroke: 0.5pt)\n')} className="px-2 h-7 hover:bg-gray-200 rounded text-xs text-gray-700 font-bold" title="Đường kẻ ngang"><i className="fas fa-minus mr-1"></i> Line</button>
+        <div className="w-px h-4 bg-gray-300 mx-1"></div>
+        <button onClick={() => insertText('#context counter(page).final().first()')} className="px-2 h-7 hover:bg-gray-200 rounded text-xs text-blue-600 font-bold bg-blue-50" title="Biến: Tổng số trang"># Trang</button>
+      </div>
+      <textarea
+        ref={textareaRef}
+        className="w-full p-3 text-xs outline-none custom-scrollbar min-h-[120px] resize-y"
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        placeholder="Nhập nội dung tại đây. Có thể quét khối rồi bấm nút ở trên..."
+      />
+    </div>
+  );
+};
+
+// PARSER ĐỂ HIỂN THỊ TYPST TRONG REACT PREVIEW
+const renderTypstPreview = (text: string) => {
+  if (!text) return '';
+  let html = text
+    .replace(/\*(.*?)\*/g, '<strong>$1</strong>')
+    .replace(/_(.*?)_/g, '<em>$1</em>')
+    .replace(/#line\(length:\s*(.*?)%?,\s*stroke:\s*(.*?)\)/g, '<hr style="width: $1%; border-top: $2 solid currentColor; margin: 6px auto;" />')
+    .replace(/#line\(length:\s*(.*?)%?\)/g, '<hr style="width: $1%; border-top: 1px solid currentColor; margin: 6px auto;" />')
+    .replace(/#context counter\(page\)\.final\(\)\.first\(\)/g, '<span class="bg-blue-100 px-1 rounded text-blue-700 border border-blue-200 font-mono text-[10px]" title="Tổng số trang">Trang</span>')
+    .replace(/\n/g, '<br />');
+  return <div dangerouslySetInnerHTML={{ __html: html }} />;
+};
+
+// =====================================================================
 // 4. MAIN BUILDER APP
 // =====================================================================
 export default function WebBuilderTab() {
@@ -163,7 +218,6 @@ export default function WebBuilderTab() {
   const [viewMode, setViewMode] = useState<"preview" | "code">("preview");
   const [activeTab, setActiveTab] = useState<"content" | "style" | "advanced">("content");
   const [generatedTypst, setGeneratedTypst] = useState("");
-  const textEditorRef = useRef<HTMLTextAreaElement>(null);
 
   const handleCopyCode = () => {
     navigator.clipboard.writeText(generatedTypst);
@@ -171,7 +225,7 @@ export default function WebBuilderTab() {
   };
 
   // -------------------------------------------------------------------
-  // TRÌNH BIÊN DỊCH TYPST THÔNG MINH (XỬ LÝ 4-WAY MARGIN/PADDING/BORDER)
+  // TRÌNH BIÊN DỊCH TYPST THÔNG MINH
   // -------------------------------------------------------------------
   useEffect(() => {
     let headerCode = ""; let footerCode = ""; let bodyCode = "";
@@ -189,12 +243,11 @@ export default function WebBuilderTab() {
       return `(paint: ${c}, thickness: ${width || '1pt'}, dash: "${style}")`;
     };
 
-    // Dịch Margin/Padding sang Dictionary
     const getSpacingDict = (p: any, prefix: string) => {
       if (p[`${prefix}Linked`] !== false && p[prefix]) return p[prefix];
       const t = p[`${prefix}Top`]; const r = p[`${prefix}Right`];
       const b = p[`${prefix}Bottom`]; const l = p[`${prefix}Left`];
-      let dict: string[] = []; // <--- THÊM : string[] VÀO ĐÂY
+      let dict: string[] = [];
       if (t && t !== '0pt') dict.push(`top: ${t}`);
       if (r && r !== '0pt') dict.push(`right: ${r}`);
       if (b && b !== '0pt') dict.push(`bottom: ${b}`);
@@ -203,12 +256,11 @@ export default function WebBuilderTab() {
       return `(${dict.join(', ')})`;
     };
 
-    // Dịch Bo góc sang Dictionary
     const getRadiusDict = (p: any) => {
       if (p.radiusLinked !== false && p.radius) return p.radius;
       const tl = p.radiusTopLeft; const tr = p.radiusTopRight;
       const br = p.radiusBottomRight; const bl = p.radiusBottomLeft;
-      let dict: string[] = []; // <--- THÊM : string[] VÀO ĐÂY
+      let dict: string[] = [];
       if (tl && tl !== '0pt') dict.push(`top-left: ${tl}`);
       if (tr && tr !== '0pt') dict.push(`top-right: ${tr}`);
       if (br && br !== '0pt') dict.push(`bottom-right: ${br}`);
@@ -217,10 +269,9 @@ export default function WebBuilderTab() {
       return `(${dict.join(', ')})`;
     };
 
-    // Dịch Border 4 cạnh sang Dictionary
     const getBorderDict = (p: any) => {
       if (p.borderLinked !== false) return formatBorder(p.borderStyle, p.borderWidth, p.borderColor);
-      const sides: string[] = []; // <--- THÊM : string[] VÀO ĐÂY
+      const sides: string[] = [];
       ['Top', 'Right', 'Bottom', 'Left'].forEach(s => {
          const b = formatBorder(p[`border${s}Style`], p[`border${s}Width`], p[`border${s}Color`]);
          if (b !== 'none') sides.push(`${s.toLowerCase()}: ${b}`);
@@ -278,8 +329,12 @@ export default function WebBuilderTab() {
           case "Section": out += `${indent}#vp-section("${p.num}", "${p.title}"${colorArg})\n`; break;
           case "Form": out += `${indent}#vp-form("${p.num}", "${p.title}"${colorArg})\n`; break;
           case "Box": out += `${indent}#vp-box(type: "${p.boxType || 'note'}", title: "${p.title}")[\n${indent}  ${p.content}\n${indent}]\n`; break;
-          case "Image": out += `${indent}#align(${p.align || 'center'})[#v(8pt)#image("/vietphys-package/img/${p.content}", width: ${p.width || 70}%)#v(8pt)]\n`; break;
-          case "Text": out += `${indent}#text(size: ${fSize}, weight: "${p.fontWeight || 'regular'}", fill: ${formatColor(p.color)})[${p.content}]\n`; break;
+          case "Image": out += `${indent}#image("/vietphys-package/img/${p.content}", width: 100%)\n`; break;
+          case "Text": 
+            // KHÔNG bọc Text trong hàm #text nếu không cần thiết vì có thể phá vỡ #line block bên trong
+            // Thay vào đó dùng #set
+            out += `${indent}#set text(size: ${fSize}, weight: "${p.fontWeight || 'regular'}", fill: ${formatColor(p.color)})\n${indent}${p.content}\n`; 
+            break;
           case "Icon": out += `${indent}#text(size: ${fSize}, fill: ${formatColor(p.color)})[#${p.iconName}()]\n`; break;
         }
 
@@ -345,7 +400,6 @@ export default function WebBuilderTab() {
     const p = node.properties;
     const themeColor = p.color || '#1890FF';
     
-    // Tạo CSS Viền mô phỏng
     const buildCssBorder = (side = '') => {
        const style = p[`border${side}Style`];
        if (!style || style === 'none') return 'none';
@@ -357,10 +411,7 @@ export default function WebBuilderTab() {
     else if (p.borderLinked !== false && p.borderStyle && p.borderStyle !== 'none') borderCss = { border: buildCssBorder() };
     else if (p.borderLinked === false) borderCss = { borderTop: buildCssBorder('Top'), borderRight: buildCssBorder('Right'), borderBottom: buildCssBorder('Bottom'), borderLeft: buildCssBorder('Left') };
 
-    // Tạo CSS Bo góc mô phỏng
     let radiusCss = p.radiusLinked !== false ? p.radius?.replace('pt','px') : `${p.radiusTopLeft?.replace('pt','px')||'0'} ${p.radiusTopRight?.replace('pt','px')||'0'} ${p.radiusBottomRight?.replace('pt','px')||'0'} ${p.radiusBottomLeft?.replace('pt','px')||'0'}`;
-    
-    // Tạo CSS Margin/Padding mô phỏng
     let padCss = p.paddingLinked !== false ? p.padding?.replace('pt','px') : `${p.paddingTop?.replace('pt','px')||'0'} ${p.paddingRight?.replace('pt','px')||'0'} ${p.paddingBottom?.replace('pt','px')||'0'} ${p.paddingLeft?.replace('pt','px')||'0'}`;
     let marCss = p.marginLinked !== false ? p.margin?.replace('pt','px') : `${p.marginTop?.replace('pt','px')||'0'} ${p.marginRight?.replace('pt','px')||'0'} ${p.marginBottom?.replace('pt','px')||'0'} ${p.marginLeft?.replace('pt','px')||'0'}`;
 
@@ -402,7 +453,7 @@ export default function WebBuilderTab() {
             {node.moduleName === "Section" && <div className="flex items-center gap-3 mt-4 mb-2"><div className="w-8 h-8 rounded flex items-center justify-center text-white flex-shrink-0" style={{ backgroundColor: themeColor }}><i className="fas fa-bookmark"></i></div><div className="flex-1 border-b-2 pb-1 font-bold text-lg uppercase" style={{ borderColor: `${themeColor}60`, color: themeColor }}>{p.num}. {p.title}</div></div>}
             {node.moduleName === "Form" && <div className="p-3 font-bold text-sm rounded-r-md border-l-4 mt-2" style={{ borderColor: themeColor, color: themeColor, backgroundColor: hexToRgbA(themeColor, 0.1) }}><i className="fas fa-tasks mr-2"></i> Dạng {p.num}: {p.title}</div>}
             {node.moduleName === "Box" && <div className={`border-l-4 p-4 mt-2 bg-gray-50 rounded-r-md shadow-sm ${p.boxType === 'warning' ? 'border-red-500' : p.boxType === 'tip' ? 'border-green-500' : 'border-blue-500'}`}><h5 className="font-bold text-sm mb-1 flex items-center gap-2" style={{ color: p.boxType === 'warning' ? '#FF3B1D' : p.boxType === 'tip' ? '#52C41A' : '#1890FF' }}><i className={`fas ${p.boxType === 'warning' ? 'fa-exclamation-triangle' : p.boxType === 'tip' ? 'fa-lightbulb' : 'fa-bookmark'}`}></i> {p.title}</h5><p className="text-sm text-gray-700 whitespace-pre-wrap">{p.content}</p></div>}
-            {node.moduleName === "Text" && <div style={{ fontSize: `${p.fontSize}px`, fontWeight: p.fontWeight === 'bold' ? 'bold' : 'normal', color: p.color }}>{p.content}</div>}
+            {node.moduleName === "Text" && <div style={{ fontSize: `${p.fontSize}px`, fontWeight: p.fontWeight === 'bold' ? 'bold' : 'normal', color: p.color }}>{renderTypstPreview(p.content)}</div>}
             {node.moduleName === "Image" && <div className="bg-gray-100 border border-dashed border-gray-300 text-gray-500 text-center py-4 rounded text-[10px] flex flex-col items-center gap-1" style={{ width: `100%` }}><i className="fas fa-image text-xl"></i> <span>{p.content}</span></div>}
             {node.moduleName === "Icon" && <div style={{ color: p.color, fontSize: `${p.fontSize}px` }}><i className={`fas ${p.iconName}`}></i></div>}
           </div>
@@ -413,6 +464,7 @@ export default function WebBuilderTab() {
 
   return (
     <div className="flex h-full w-full bg-[#e9ebee] overflow-hidden font-sans" onClick={() => setSelectedNode(null)}>
+      
       {/* ----------------- CỘT TRÁI: PROPERTIES PANEL ----------------- */}
       <div className="w-[320px] bg-white border-r flex flex-col shadow-2xl z-30 flex-shrink-0" onClick={(e) => e.stopPropagation()}>
         {!selectedNode ? (
@@ -451,9 +503,11 @@ export default function WebBuilderTab() {
                     <Accordion title="Bố cục Container" defaultOpen={true}>
                       <label className="block text-[11px] font-bold text-gray-500 mb-1">Hướng Flexbox (Direction)</label>
                       <select className="w-full border border-gray-300 p-2 text-xs bg-gray-50 rounded outline-none" value={selectedNode.properties.direction} onChange={e => updateNodeProps(selectedNode.id, { direction: e.target.value })}>
-                        <option value="column">↓ Theo chiều dọc (Column)</option><option value="row">→ Theo chiều ngang (Row)</option>
+                        <option value="column">↓ Dọc (Stack Top-to-Bottom)</option><option value="row">→ Ngang (Grid Left-to-Right)</option>
                       </select>
-                      <NumberUnitControl label="Khoảng cách giữa (Gap)" value={selectedNode.properties.gap || "0pt"} onChange={(val: string) => updateNodeProps(selectedNode.id, { gap: val })} max={100} />
+                      <div className="mt-4">
+                         <NumberUnitControl label="Khoảng cách giữa (Gap)" value={selectedNode.properties.gap || "0pt"} onChange={(val: string) => updateNodeProps(selectedNode.id, { gap: val })} max={100} />
+                      </div>
                     </Accordion>
                   )}
                   {selectedNode.properties.num !== undefined && (
@@ -465,8 +519,12 @@ export default function WebBuilderTab() {
                     </Accordion>
                   )}
                   {selectedNode.properties.content !== undefined && (
-                    <Accordion title={selectedNode.moduleName === "Image" ? "Nguồn Ảnh" : "Văn bản"} defaultOpen={true}>
-                      <textarea className="w-full border p-2 text-xs rounded min-h-[100px] custom-scrollbar" value={selectedNode.properties.content} onChange={e => updateNodeProps(selectedNode.id, { content: e.target.value })} />
+                    <Accordion title={selectedNode.moduleName === "Image" ? "Nguồn Ảnh" : "Văn bản & Định dạng"} defaultOpen={true}>
+                      {selectedNode.moduleName === "Text" ? (
+                         <MiniRichTextEditor value={selectedNode.properties.content} onChange={(val: string) => updateNodeProps(selectedNode.id, { content: val })} />
+                      ) : (
+                         <textarea className="w-full border p-2 text-xs rounded min-h-[100px] custom-scrollbar" value={selectedNode.properties.content} onChange={e => updateNodeProps(selectedNode.id, { content: e.target.value })} />
+                      )}
                     </Accordion>
                   )}
                   {selectedNode.properties.width !== undefined && selectedNode.moduleName === "Image" && (
@@ -492,11 +550,10 @@ export default function WebBuilderTab() {
               {/* === TAB KIỂU DÁNG === */}
               {activeTab === "style" && (
                 <>
-                  {/* Đã bỏ điều kiện Widget, giờ Container cũng có thể chỉnh Width */}
                   <Accordion title="Kích thước (Width)" defaultOpen={true}>
-                    <label className="block text-[11px] font-bold text-gray-500 mb-1">Độ rộng</label>
-                    <input type="text" className="w-full border p-2 text-xs rounded mb-1" placeholder="100%, 1fr, 50pt, auto..." value={selectedNode.properties.width || "100%"} onChange={e => updateNodeProps(selectedNode.id, { width: e.target.value })}/>
-                    <span className="text-[10px] text-gray-400 italic">Nhập phần trăm (30%, 70%) hoặc '1fr' để chia cột khi nằm trong Container ngang.</span>
+                     <label className="block text-[11px] font-bold text-gray-500 mb-1">Độ rộng</label>
+                     <input type="text" className="w-full border p-2 text-xs rounded mb-1" placeholder="100%, 1fr, 50pt, auto..." value={selectedNode.properties.width || "100%"} onChange={e => updateNodeProps(selectedNode.id, { width: e.target.value })}/>
+                     <span className="text-[10px] text-gray-400 italic">Nhập phần trăm (30%, 70%) hoặc '1fr' để chia cột khi nằm trong Container ngang.</span>
                   </Accordion>
 
                   {selectedNode.properties.color !== undefined && (
