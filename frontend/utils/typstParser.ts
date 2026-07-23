@@ -5,7 +5,6 @@ export const generateTypstCode = (rootNode: BuilderNode): string => {
   let footerCode = "";
   const rp = rootNode.properties || {};
 
-  // Thầy lưu ý giữ nguyên đường dẫn import này như thầy đã thiết lập
   let code = `#import "/vietphys-package/vietphys.typ": *\n`;
   code += `#set text(lang: "vi")\n`;
   
@@ -82,55 +81,53 @@ export const generateTypstCode = (rootNode: BuilderNode): string => {
       if (p.bgType === 'gradient') {
           bgStr = `gradient.linear(${formatColor(p.bgGradientStart || '#1890FF')}, ${formatColor(p.bgGradientEnd || '#722ED1')}, angle: ${p.gradientAngle || 135}deg)`;
       } 
-      // BỘ LỌC VÀ GIẢI MÃ SVG HOÀN TOÀN MỚI
       else if (p.bgType === 'image' && p.bgImage) {
           bgStr = "none"; 
           let cleanBgImage = extractImgString(p.bgImage);
           let imgTypst = "";
+          let isPattern = (p.bgImageDisplay === 'pattern');
+          
+          let dynamicThemeColorHex = p.color || '#1890FF';
 
-          if (cleanBgImage.startsWith('<svg')) {
-              let escapedSvg = cleanBgImage.replace(/"/g, '\\"').replace(/\n/g, ' ');
-              // Thêm tường minh định dạng format: "svg"
-              imgTypst = `image.decode("${escapedSvg}", format: "svg")`;
-          } 
-          else if (cleanBgImage.startsWith('data:image/svg+xml')) {
-              let isBase64 = cleanBgImage.includes(';base64,');
-              let svgData = cleanBgImage.substring(cleanBgImage.indexOf(',') + 1);
+          if (cleanBgImage.startsWith('<svg') || cleanBgImage.startsWith('data:image/svg+xml')) {
               let rawSvg = "";
-
-              if (isBase64) {
-                  try { 
-                      // Mẹo giải mã Base64 an toàn tuyệt đối cho Javascript
-                      rawSvg = decodeURIComponent(escape(atob(svgData))); 
-                  } catch(e) {
-                      try { rawSvg = atob(svgData); } catch (err) { rawSvg = ""; }
-                  }
+              if (cleanBgImage.startsWith('<svg')) {
+                  rawSvg = cleanBgImage;
               } else {
-                  try { rawSvg = decodeURIComponent(svgData); }
-                  catch (e) { rawSvg = unescape(svgData); }
+                  let isBase64 = cleanBgImage.includes(';base64,');
+                  let svgData = cleanBgImage.substring(cleanBgImage.indexOf(',') + 1);
+                  if (isBase64) {
+                      try { rawSvg = decodeURIComponent(escape(atob(svgData))); } 
+                      catch(e) { try { rawSvg = atob(svgData); } catch (err) { rawSvg = ""; } }
+                  } else {
+                      try { rawSvg = decodeURIComponent(svgData); }
+                      catch (e) { rawSvg = unescape(svgData); }
+                  }
               }
 
+              rawSvg = rawSvg.replace(/\{\{color\}\}/gi, dynamicThemeColorHex);
               let escapedSvg = rawSvg.replace(/"/g, '\\"').replace(/\n/g, ' ');
-              // Thêm tường minh định dạng format: "svg"
-              imgTypst = `image.decode("${escapedSvg}", format: "svg")`;
+              imgTypst = `image(bytes("${escapedSvg}"), format: "svg")`;
           } 
           else if (cleanBgImage.startsWith('data:image/')) {
-              imgTypst = `none /* Ảnh Base64 quá dài, Typst cần file path để xuất PDF. Vui lòng dán Link file hoặc dùng SVG Pattern! */`;
+              imgTypst = `none /* Ảnh Base64 PNG/JPG quá dài */`;
           } 
           else {
               imgTypst = `image("${escapeTypstString(cleanBgImage)}")`;
           }
 
           if (!imgTypst.startsWith('none')) {
-              if (p.bgImageDisplay === 'pattern') {
-                  bgStr = `pattern(size: (${p.bgPatternW || '60pt'}, ${p.bgPatternH || '60pt'}))[#${imgTypst}]`;
+              if (isPattern) {
+                  let stretchedImg = imgTypst.replace(/\)$/, ', width: 100%, height: 100%)');
+                  bgStr = `tiling(size: (${p.bgPatternW || '60pt'}, ${p.bgPatternH || '60pt'}))[#${stretchedImg}]`;
               } else {
+                  bgStr = "none";
                   let fitStr = "";
-                  if (p.bgImageDisplay === 'cover' || !p.bgImageDisplay) fitStr = `, width: 100%, height: 100%, fit: "cover"`;
+                  if (p.bgImageDisplay === 'stretch') fitStr = `, width: 100%, height: 100%, fit: "stretch"`;
                   else if (p.bgImageDisplay === 'contain') fitStr = `, width: 100%, height: 100%, fit: "contain"`;
-                  else if (p.bgImageDisplay === 'stretch') fitStr = `, width: 100%, height: 100%`;
-
-                  placeImageOverlay = `#place(center + horizon)[#${imgTypst.replace(/\)$/, fitStr + ')')}]\n${indent}      `;
+                  else fitStr = `, width: 100%, height: 100%, fit: "cover"`;
+                  
+                  placeImageOverlay = `#place(top + left)[#block(width: 100%, height: 100%)[#${imgTypst.replace(/\)$/, fitStr + ')')}]\n${indent}      ]\n${indent}      `;
               }
           }
       } 
@@ -151,32 +148,44 @@ export const generateTypstCode = (rootNode: BuilderNode): string => {
 
       switch (node.moduleName) {
           case "Container": {
-              let inner = "";
+              let absChildren = "";
+              let flowChildren = "";
+              
               if (node.children && node.children.length > 0) {
-                  inner = node.children.map((c: any) => renderNode(c, indent + "        ")).join("");
+                  node.children.forEach((c: any) => {
+                      if (c.properties?.position === 'absolute') {
+                          absChildren += renderNode(c, indent + "        ");
+                      } else {
+                          flowChildren += renderNode(c, indent + "          ");
+                      }
+                  });
               }
               
-              let containerCode = "";
-              if (p.layoutType === 'grid') {
-                 let cols = p.gridCols || "1fr 1fr";
-                 let typstCols = cols.split(/\s+/).filter(Boolean).join(", ");
-                 containerCode = `#grid(columns: (${typstCols}), column-gutter: ${p.gap || "0pt"}, row-gutter: ${p.gap || "0pt"}, align: ${p.align || 'left'})[\n${inner}${indent}      ]`;
-              } else {
-                 if (p.direction === 'row') {
-                     containerCode = `#stack(dir: ltr, spacing: ${p.gap || "0pt"})[\n${inner}${indent}      ]`;
-                 } else {
-                     containerCode = `#stack(dir: ttb, spacing: ${p.gap || "0pt"})[\n${inner}${indent}      ]`;
-                 }
+              let flowCode = "";
+              if (flowChildren !== "") {
+                  if (p.layoutType === 'grid') {
+                     let cols = p.gridCols || "1fr 1fr";
+                     let typstCols = cols.split(/\s+/).filter(Boolean).join(", ");
+                     flowCode = `#grid(columns: (${typstCols}), column-gutter: ${p.gap || "0pt"}, row-gutter: ${p.gap || "0pt"}, align: ${p.align || 'left'})[\n${flowChildren}${indent}        ]`;
+                  } else {
+                     let dir = p.direction === 'row' ? 'ltr' : 'ttb';
+                     flowCode = `#stack(dir: ${dir}, spacing: ${p.gap || "0pt"})[\n${flowChildren}${indent}        ]`;
+                  }
               }
 
-              if (p.height && p.height !== 'auto') {
-                  containerCode = `#block(height: ${p.height})[\n${indent}        ${containerCode}\n${indent}      ]`;
-              }
+              let paddedFlow = `#pad(${paddingStr})[\n${indent}          ${flowCode || '#v(0pt)'}\n${indent}        ]`;
+
+              let coreContent = "";
+              if (placeImageOverlay) coreContent += placeImageOverlay; 
+              if (absChildren) coreContent += absChildren;             
+              coreContent += paddedFlow;                               
+
+              let blockCode = `#block(width: 100%${p.height && p.height !== 'auto' ? `, height: ${p.height}` : ''})[\n${indent}        ${coreContent}\n${indent}      ]`;
 
               out += `${indent}#pad(${marginStr})[\n`;
-              out += `${indent}  #vp-css-box(bg: ${bgStr}, ${borderStr}radius: ${radiusStr}, padding: ${paddingStr}, width: ${p.width || '100%'})[\n`;
+              out += `${indent}  #vp-css-box(bg: ${bgStr}, ${borderStr}radius: ${radiusStr}, padding: 0pt, width: ${p.width || '100%'})[\n`;
               out += `${indent}    #align(${p.align || "left"})[\n`;
-              out += `${indent}      ${placeImageOverlay}${containerCode}\n`;
+              out += `${indent}      ${blockCode}\n`;
               out += `${indent}    ]\n`;
               out += `${indent}  ]\n`;
               out += `${indent}]\n`;
@@ -191,24 +200,29 @@ export const generateTypstCode = (rootNode: BuilderNode): string => {
 
               let textCode = `#text(${fontCode}fill: ${formatColor(p.color || '#000000')}, size: ${p.fontSize || 12}${p.fontUnit || 'pt'}, weight: "${weightCode}", ${trackingCode})[\n`;
               
+              // 🌟 ÉP TYPST XUỐNG DÒNG: Tự động chèn dấu Backslash (\) trước mỗi ký tự \n 🌟
               txtContent = txtContent
                   .replace(/\*(.*?)\*/g, '#strong[$1]')
                   .replace(/_(.*?)_/g, '#emph[$1]')
                   .replace(/#text\(\s*size:\s*([^,)]+)[^)]*\)\s*\[(.*?)\]/g, '#text(size: $1)[$2]')
-                  .replace(/<br \/>/g, '\\ ')
-                  .replace(/\n/g, '\n' + indent + '          ');
+                  .replace(/<br\s*\/?>/gi, '\n') // Quy chuẩn <br> thành \n
+                  .replace(/\n/g, '\\ \n' + indent + '          '); // Ép Typst xuống dòng cứng
 
               textCode += `${indent}          ${txtContent}\n`;
               textCode += `${indent}        ]`;
 
-              if (p.height && p.height !== 'auto') {
-                  textCode = `#block(height: ${p.height})[\n${indent}        ${textCode}\n${indent}      ]`;
-              }
+              let paddedFlow = `#pad(${paddingStr})[\n${indent}          ${textCode}\n${indent}        ]`;
+
+              let coreContent = "";
+              if (placeImageOverlay) coreContent += placeImageOverlay;
+              coreContent += paddedFlow;
+
+              let blockCode = `#block(width: 100%${p.height && p.height !== 'auto' ? `, height: ${p.height}` : ''})[\n${indent}        ${coreContent}\n${indent}      ]`;
 
               out += `${indent}#pad(${marginStr})[\n`;
-              out += `${indent}  #vp-css-box(bg: ${bgStr}, ${borderStr}radius: ${radiusStr}, padding: ${paddingStr}, width: ${p.width || '100%'})[\n`;
+              out += `${indent}  #vp-css-box(bg: ${bgStr}, ${borderStr}radius: ${radiusStr}, padding: 0pt, width: ${p.width || '100%'})[\n`;
               out += `${indent}    #align(${p.align || "left"})[\n`;
-              out += `${indent}      ${placeImageOverlay}${textCode}\n`;
+              out += `${indent}      ${blockCode}\n`;
               out += `${indent}    ]\n`;
               out += `${indent}  ]\n`;
               out += `${indent}]\n`;
@@ -299,8 +313,8 @@ export const generateTypstCode = (rootNode: BuilderNode): string => {
               out += `${indent}#vp-css-box(bg: ${formatColor(bColor)}.lighten(90%), border: (left: 4pt + ${formatColor(bColor)}), padding: 12pt, radius: (right: 4pt))[\n`;
               out += `${indent}  #text(fill: ${formatColor(bColor)}, weight: "bold", size: 12pt)[#${bIcon} ${escapeTypstString(p.title)}]\n`;
               out += `${indent}  #v(4pt)\n`;
-              out += `${indent}  #text(fill: luma(60))[\n`;
-              let bContent = (p.content || "").replace(/\n/g, '\n' + indent + '    ');
+              // Ép xuống dòng cho nội dung trong Box
+              let bContent = (p.content || "").replace(/<br\s*\/?>/gi, '\n').replace(/\n/g, '\\ \n' + indent + '    ');
               out += `${indent}    ${bContent}\n`;
               out += `${indent}  ]\n`;
               out += `${indent}]\n`;
@@ -329,7 +343,8 @@ export const generateTypstCode = (rootNode: BuilderNode): string => {
                   if (q.topic && rp.qShowSource !== false) out += `${indent}  source: "${escapeTypstString(q.topic)}", source-color: ${formatColor(p.sourceColor || sColor)},\n`;
                   out += `${indent})[\n`;
                   
-                  let stem = (q.stem || "").replace(/\n/g, '\n' + indent + '  ');
+                  // Ép xuống dòng cho nội dung câu hỏi
+                  let stem = (q.stem || "").replace(/<br\s*\/?>/gi, '\n').replace(/\n/g, '\\ \n' + indent + '  ');
                   out += `${indent}  ${stem}\n`;
                   out += `${indent}]\n`;
 
@@ -338,7 +353,7 @@ export const generateTypstCode = (rootNode: BuilderNode): string => {
                       out += `${indent}#v(6pt)\n`;
                       out += `${indent}#vp-mcq-grid(columns: ${optCols})[\n`;
                       q.options.forEach((opt: string, idx: number) => {
-                          let oText = (opt || "").replace(/\n/g, '\n' + indent + '  ');
+                          let oText = (opt || "").replace(/<br\s*\/?>/gi, '\n').replace(/\n/g, '\\ \n' + indent + '  ');
                           out += `${indent}  #vp-mcq-opt("${String.fromCharCode(65 + idx)}")[\n`;
                           out += `${indent}    ${oText}\n`;
                           out += `${indent}  ]\n`;
@@ -348,7 +363,7 @@ export const generateTypstCode = (rootNode: BuilderNode): string => {
 
                   if (p.showSolution && q.solution) {
                       out += `${indent}#vp-solution(color: ${formatColor(p.color || gColor)})[\n`;
-                      let sol = (q.solution || "").replace(/\n/g, '\n' + indent + '  ');
+                      let sol = (q.solution || "").replace(/<br\s*\/?>/gi, '\n').replace(/\n/g, '\\ \n' + indent + '  ');
                       out += `${indent}  ${sol}\n`;
                       out += `${indent}]\n`;
                   }

@@ -22,7 +22,19 @@ export const hexToRgbA = (hex: string, alpha: number) => {
 };
 
 export const TOOLBOX_ITEMS = [
-  { type: "Container", moduleName: "Container", icon: "fas fa-box", defaultProps: { direction: "column", gap: "10pt", bgType: "solid", bg: "none", borderLinked: true, borderStyle: "none", borderWidth: "1pt", borderColor: "#cccccc", radiusLinked: true, width: "100%", position: "relative", zIndex: "1" } },
+  {
+    type: 'Container',
+    moduleName: 'Container',
+    icon: 'fa-box',
+    defaultProps: {
+      layoutType: 'flex',
+      direction: 'column',
+      gap: '10pt',
+      padding: '10pt',
+      width: '100%',
+      color: '#1890FF' // 👈 THÊM DÒNG NÀY ĐỂ BẬT BẢNG CHỌN MÀU THEME
+    }
+  },
   { type: "Container", moduleName: "Header", icon: "fas fa-arrow-up", defaultProps: { direction: "row", gap: "10pt", paddingBottom: "10pt", bgType: "solid", bg: "none", borderLinked: false, borderBottomStyle: "solid", borderBottomWidth: "1.5pt", borderBottomColor: "#1890FF", width: "100%" } },
   { type: "Container", moduleName: "Footer", icon: "fas fa-arrow-down", defaultProps: { direction: "row", gap: "10pt", paddingTop: "10pt", bgType: "solid", bg: "none", borderLinked: false, borderTopStyle: "solid", borderTopWidth: "1pt", borderTopColor: "#606060", width: "100%" } },
   { type: "Widget", moduleName: "Chapter", icon: "fas fa-book-open", defaultProps: { num: "I", title: "TÊN CHƯƠNG", color: "#1890FF", width: "100%" } },

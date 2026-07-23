@@ -103,7 +103,6 @@ export default function CanvasArea() {
     );
   };
 
-  // BỘ LỌC VỆ SINH CHUỖI ẢNH SIÊU THÔNG MINH
   const extractImgString = (raw: string) => {
     if (!raw) return "";
     let str = raw.trim();
@@ -144,13 +143,28 @@ export default function CanvasArea() {
         bgColorCss = 'transparent';
     } else if (p.bgType === 'image' && p.bgImage) {
         bgColorCss = 'transparent';
-        
-        // Tự động lọc sạch cú pháp CSS rác thầy lỡ tay copy vào
         let cleanBgImage = extractImgString(p.bgImage);
+        let dynamicThemeColorHex = p.color || '#1890FF'; // Lấy màu hiện tại
         
-        // Nếu thầy dán code SVG thuần túy, ép nó thành Base64 để hiển thị Web
         if (cleanBgImage.startsWith('<svg')) {
+            // Thay thế từ khóa ma thuật
+            cleanBgImage = cleanBgImage.replace(/\{\{color\}\}/gi, dynamicThemeColorHex);
             cleanBgImage = `data:image/svg+xml,${encodeURIComponent(cleanBgImage)}`;
+        } else if (cleanBgImage.startsWith('data:image/svg+xml')) {
+            let isBase64 = cleanBgImage.includes(';base64,');
+            let svgData = cleanBgImage.substring(cleanBgImage.indexOf(',') + 1);
+            let rawSvg = "";
+            if (isBase64) {
+               try { rawSvg = decodeURIComponent(escape(atob(svgData))); } catch(e) { try { rawSvg = atob(svgData); } catch(err){} }
+            } else {
+               try { rawSvg = decodeURIComponent(svgData); } catch(e) { rawSvg = unescape(svgData); }
+            }
+            
+            // Thay thế từ khóa ma thuật
+            rawSvg = rawSvg.replace(/\{\{color\}\}/gi, dynamicThemeColorHex);
+            
+            // Đóng gói lại
+            cleanBgImage = `data:image/svg+xml;base64,${btoa(unescape(encodeURIComponent(rawSvg)))}`;
         }
 
         bgImageCss = `url("${cleanBgImage}")`;
@@ -243,8 +257,6 @@ export default function CanvasArea() {
           </div>
         ) : (
           <div className="w-full pointer-events-none" style={{ textAlign: p.align || 'left' }}>
-            
-            {/* CÁC GIAO DIỆN WIDGET KHÁC GIỮ NGUYÊN... */}
             {node.moduleName === "Chapter" && (() => {
                 const currentTplId = p.template && p.template !== 'global' ? p.template : (rootNode.properties.tplChapter || 'A');
                 if (currentTplId === 'A') return <div className="relative border border-dashed mt-4 mb-2 p-6" style={{ borderColor: themeColor }}><div className="absolute -top-4 left-4 px-3 py-1 text-white text-sm font-bold rounded-sm" style={{ backgroundColor: themeColor }}>Chương {p.num}</div><h1 className="text-2xl font-extrabold uppercase text-center" style={{ color: themeColor }}>{p.title}</h1></div>;

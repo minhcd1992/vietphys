@@ -197,8 +197,7 @@ async def compile_pdf(req: CompileRequest, background_tasks: BackgroundTasks):
         # 3. Gọi CLI của Typst để biên dịch file PDF
         process = subprocess.run(
             ["typst", "compile", tmp_typ_path, pdf_path, "--root", root_dir],
-            capture_output=True, text=True
-        )
+            capture_output=True, text=True, encoding="utf-8")
 
         # 4. XỬ LÝ LỖI CHUẨN: Trả về HTTP 400 để trình duyệt không tải file rác
         if process.returncode != 0:
