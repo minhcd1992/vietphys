@@ -12,6 +12,9 @@
     v(0.8em)
     text(size: 13pt, weight: "bold", fill: color, title)
     v(0.5em)
+  } else {
+    // Fallback an toàn cho level 3 trở lên
+    block(text(size: 14pt, weight: "bold", fill: black)[#title])
   }
 }
 

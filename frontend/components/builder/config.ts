@@ -33,4 +33,28 @@ export const TOOLBOX_ITEMS = [
   { type: "Widget", moduleName: "Text", icon: "fas fa-font", defaultProps: { content: "Nhập văn bản *tại đây*...", align: "left", fontSize: "12", fontUnit: "pt", fontWeight: "regular", color: "#000000", width: "100%" } },
   { type: "Widget", moduleName: "Image", icon: "fas fa-image", defaultProps: { content: "placeholder_hinh_1.png", width: "70%" } },
   { type: "Widget", moduleName: "Icon", icon: "fas fa-star", defaultProps: { iconName: "fa-star", color: "#1890FF", fontSize: "16", fontUnit: "pt", align: "center", width: "auto" } },
+  { 
+    type: "Widget", 
+    moduleName: "QuestionBlock", 
+    icon: "fas fa-question-circle", 
+    defaultProps: { 
+      // Chế độ: 'manual' (chọn tay) hoặc 'matrix' (động theo ma trận)
+      mode: "manual", 
+      
+      // Chế độ Manual: Chứa ID các câu hỏi được chọn tay
+      selectedQuestions: [], 
+      
+      // Chế độ Matrix: Chứa các luật rút trích ngẫu nhiên
+      // Ví dụ: [{ topic: "Dao động cơ", level: "Vận dụng", count: 2 }]
+      matrixRules: [], 
+
+      // Cài đặt hiển thị (Ánh xạ thẳng vào hàm #vp-question của Typst)
+      showOptions: true,
+      optionsLayout: 4, // 1, 2, hoặc 4 cột
+      showSolution: false,
+      
+      width: "100%",
+      padding: "10pt"
+    } 
+  },
 ];

@@ -2,9 +2,13 @@ import json
 import os
 import difflib
 import re
+import subprocess
+import tempfile
 from dotenv import load_dotenv
 import google.generativeai as genai
-from fastapi import FastAPI, Depends, UploadFile, File, HTTPException
+from fastapi import FastAPI, Depends, UploadFile, File, HTTPException, BackgroundTasks
+# Sửa lại dòng import từ fastapi.responses để có thêm JSONResponse
+from fastapi.responses import FileResponse, JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
 from typing import List
@@ -14,6 +18,7 @@ from sqlalchemy import func
 import models
 from database import engine, SessionLocal
 
+# Khởi tạo Database
 models.Base.metadata.create_all(bind=engine)
 
 # Tải các biến bí mật từ file .env vào hệ thống
@@ -31,7 +36,7 @@ genai.configure(api_key=API_KEY)
 app = FastAPI()
 
 # =====================================================================
-# CẤU TRÚC ÉP KIỂU JSON CHO GEMINI (ĐÃ XÓA 'DEFAULT' ĐỂ FIX LỖI GOOGLE SDK)
+# 1. CẤU TRÚC ÉP KIỂU JSON CHO GEMINI
 # =====================================================================
 class Question(BaseModel):
     chapter: str = Field(description="Tên chương. Nếu không có thì trả về 'Chưa phân loại'")
@@ -58,7 +63,7 @@ generation_config = genai.GenerationConfig(
 )
 
 # =====================================================================
-# CẤU HÌNH CORS VÀ DATABASE
+# 2. CẤU HÌNH CORS VÀ DATABASE
 # =====================================================================
 app.add_middleware(
     CORSMiddleware,
@@ -75,7 +80,7 @@ def get_db():
     finally:
         db.close()
 
-# CẬP NHẬT MODEL DATA ĐỂ NHẬN THÊM DỮ LIỆU TỪ FRONTEND
+# Models Request từ Frontend
 class QuestionData(BaseModel):
     chapter: str
     topic: str
@@ -91,8 +96,14 @@ class QuestionData(BaseModel):
     sol: str
     lines: str 
 
+class CompileRequest(BaseModel):
+    typst_code: str
+
+class DeleteRequest(BaseModel):
+    ids: List[int]
+
 # =====================================================================
-# CÁC HÀM TIỆN ÍCH (RENDER VÀ KIỂM TRA TRÙNG LẶP)
+# 3. CÁC HÀM TIỆN ÍCH
 # =====================================================================
 def render_typst(q_type, level, stem, options, ans_mcq, tf_stmts, tf_ans, short_ans, sol, lines="", source=""):
     parts = [f'#vp-question(\n  [{stem}],\n  type: "{q_type}",\n']
@@ -131,14 +142,90 @@ def is_duplicate_question(new_stem, db: Session):
             return True
     return False
 
+def cleanup_temp_files(typ_path: str, pdf_path: str):
+    """Dọn dẹp file tạm sau khi biên dịch PDF xong"""
+    try:
+        if os.path.exists(typ_path): os.remove(typ_path)
+        if os.path.exists(pdf_path): os.remove(pdf_path)
+    except Exception:
+        pass
+
 # =====================================================================
-# API CHÍNH
+# 4. CÁC API DÀNH CHO WEB BUILDER
+# =====================================================================
+
+@app.get("/questions")
+async def get_builder_questions(db: Session = Depends(get_db)):
+    """API lấy Ngân hàng câu hỏi cho giao diện kéo thả Web Builder"""
+    questions = db.query(models.Question).order_by(models.Question.id.desc()).all()
+    result = []
+    for q in questions:
+        answer = ""
+        if q.q_type == "mcq":
+            answer = q.ans_mcq
+        elif q.q_type == "short":
+            answer = q.short_ans
+            
+        result.append({
+            "id": q.id,
+            "topic": q.topic if q.topic else "Chưa phân loại",
+            "level": q.level if q.level else "Không xác định",
+            "stem": q.stem,
+            "options": q.options if q.options else [],
+            "answer": answer if answer else "",
+            "solution": q.sol if q.sol else ""
+        })
+    return result
+
+@app.post("/api/compile-pdf")
+async def compile_pdf(req: CompileRequest, background_tasks: BackgroundTasks):
+    try:
+        # 1. Định vị thư mục gốc (vietphys) 
+        root_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
+        
+        # Tạo thư mục temp nằm NGAY BÊN TRONG backend để Typst không báo lỗi "outside root"
+        temp_dir = os.path.join(os.path.dirname(__file__), "temp")
+        os.makedirs(temp_dir, exist_ok=True)
+        
+        # 2. Tạo file tạm thời bên trong thư mục temp vừa tạo
+        with tempfile.NamedTemporaryFile(dir=temp_dir, delete=False, suffix=".typ", mode="w", encoding="utf-8") as tmp_typ:
+            tmp_typ.write(req.typst_code)
+            tmp_typ_path = tmp_typ.name
+            
+        pdf_path = tmp_typ_path.replace(".typ", ".pdf")
+
+        # 3. Gọi CLI của Typst để biên dịch file PDF
+        process = subprocess.run(
+            ["typst", "compile", tmp_typ_path, pdf_path, "--root", root_dir],
+            capture_output=True, text=True
+        )
+
+        # 4. XỬ LÝ LỖI CHUẨN: Trả về HTTP 400 để trình duyệt không tải file rác
+        if process.returncode != 0:
+            cleanup_temp_files(tmp_typ_path, pdf_path)
+            return JSONResponse(
+                status_code=400, 
+                content={"message": f"Lỗi Typst CLI:\n{process.stderr}"}
+            )
+
+        # 5. Dọn dẹp file tạm thời khỏi máy chủ sau khi xuất file xong
+        background_tasks.add_task(cleanup_temp_files, tmp_typ_path, pdf_path)
+
+        # Trả PDF xịn về trình duyệt
+        return FileResponse(
+            path=pdf_path,
+            media_type="application/pdf",
+            filename="tai-lieu-hoc-kage.pdf"
+        )
+    except Exception as e:
+        return JSONResponse(status_code=500, content={"message": str(e)})
+# =====================================================================
+# 5. CÁC API QUẢN LÝ NGÂN HÀNG CÂU HỎI VÀ AI
 # =====================================================================
 
 @app.post("/api/scan-images")
 async def scan_images(files: List[UploadFile] = File(...), db: Session = Depends(get_db)):
     try:
-        # SỬ DỤNG MÔ HÌNH MỚI NHẤT
         model = genai.GenerativeModel('gemini-2.5-flash') 
         
         prompt = """
@@ -151,25 +238,21 @@ async def scan_images(files: List[UploadFile] = File(...), db: Session = Depends
         1. QUY TẮC DÙNG HÀM `#vp-qty("giá_trị", "đơn_vị")`:
            - Dấu phẩy thập phân -> Dấu chấm. (VD: 9,8 -> 9.8).
            - CẤM LỒNG VÀO BIỂU THỨC TOÁN: Không bao giờ được đặt `#vp-qty` bên trong dấu `$ ... $`. 
-             ❌ SAI: `$v = #vp-qty("5", "m/s")$`
-             ✅ ĐÚNG: Vận tốc `$v =$ #vp-qty("5", "m/s")`
            - ĐƠN VỊ CÓ SỐ MŨ/KÝ HIỆU: Phải bọc chuỗi đơn vị trong dấu `$`.
-             ❌ SAI: `#vp-qty("9.8", "m/s"^2)`
-             ✅ ĐÚNG: `#vp-qty("9.8", $"m/s"^2$)`
-           - KHÔNG dùng hàm này cho chữ thông thường. (❌ SAI: `#vp-qty("3", "giai đoạn")` -> ✅ ĐÚNG: `3 giai đoạn`).
+           - KHÔNG dùng hàm này cho chữ thông thường.
 
         2. QUY TẮC MÔI TRƯỜNG TOÁN HỌC TYPST ($...$):
-           - Bắt buộc bọc các biến số bằng dấu `$` (Ví dụ: `$t_1$, $V_"max"$`).
-           - ❌ CẤM DÙNG LaTeX (\). Dùng cú pháp Typst: `$omega$, $lambda$, $mu$, $a_"max"$`.
-           - Phép nhân dùng `dot` hoặc `times` (VD: `$A dot B$`). 
-           - CẤM DÙNG #vp-qty CHO BIỂU THỨC TOÁN: Nếu giá trị có chứa căn bậc hai (sqrt), phân số, biến số, tuyệt đối không dùng #vp-qty. (❌ SAI: `#vp-qty("5 sqrt(3)", "cm")` -> ✅ ĐÚNG: `$5 sqrt(3)$ cm`).
-        - KIỂM TRA CHÉO ĐÁP ÁN: Tuyệt đối không được copy nhầm các phương án A, B, C, D của câu trên xuống câu dưới. Phải đọc thật kỹ!
+           - Bắt buộc bọc các biến số bằng dấu `$`.
+           - CẤM DÙNG LaTeX (\). Dùng cú pháp Typst.
+           - Phép nhân dùng `dot` hoặc `times`. 
+           - CẤM DÙNG #vp-qty CHO BIỂU THỨC TOÁN: Nếu giá trị có chứa căn bậc hai (sqrt), phân số, biến số, tuyệt đối không dùng #vp-qty.
+        - KIỂM TRA CHÉO ĐÁP ÁN: Tuyệt đối không được copy nhầm các phương án A, B, C, D.
            
         3. QUY TẮC XUẤT LỜI GIẢI (sol):
-           - BẮT BUỘC phải dùng ký tự `\n` để xuống dòng giữa các phần "Phân tích", "Giải chi tiết", "Nhận xét". Tuyệt đối không viết dính liền thành 1 cục chữ.
+           - BẮT BUỘC phải dùng ký tự `\\n` để xuống dòng.
 
         4. BẢNG SỐ LIỆU (#vp-table):
-           - Dùng tham số `cols: (1fr, 1fr...)`. Phải có `header: (...)`. Không tự bịa thêm hàng.
+           - Dùng tham số `cols: (1fr, 1fr...)`. Phải có `header: (...)`.
 
         5. TRẮC NGHIỆM ĐÁP ÁN: Xóa sạch tiền tố "A.", "B.", "C.", "D.".
 
@@ -178,8 +261,8 @@ async def scan_images(files: List[UploadFile] = File(...), db: Session = Depends
 
         6. THỨ TỰ QUÉT (CHỐNG BỎ SÓT):
            - Bạn BẮT BUỘC phải đọc tài liệu theo thứ tự từ trên xuống dưới, từ trang đầu đến trang cuối.
-           - Quét sạch sẽ từng câu một theo đúng số thứ tự (Câu 1, Câu 2, Câu 3...). 
-           - NGHIÊM CẤM việc đọc nhảy cóc, đọc lùi, hoặc tự ý bỏ qua bất kỳ câu hỏi nào.
+           - Quét sạch sẽ từng câu một theo đúng số thứ tự.
+           - NGHIÊM CẤM việc đọc nhảy cóc, đọc lùi.
         """
         
         parts = [prompt]
@@ -187,20 +270,17 @@ async def scan_images(files: List[UploadFile] = File(...), db: Session = Depends
             contents = await file.read()
             parts.append({"mime_type": file.content_type, "data": contents})
             
-        # Truyền generation_config vào để Gemini luôn trả về JSON theo schema.
         response = model.generate_content(
             parts,
             generation_config=generation_config,
         )
 
-        # Kiểm tra nếu tài liệu quá dài khiến phản hồi bị cắt giữa chừng.
         if response.candidates[0].finish_reason.name == "MAX_TOKENS":
             raise ValueError(
-                "Lỗi: File PDF quá dài khiến AI bị cạn kiệt bộ nhớ (Max Tokens) giữa chừng. "
-                "Hãy chia nhỏ file PDF ra (ví dụ: quét mỗi lần 10-15 trang)."
+                "Lỗi: File PDF quá dài khiến AI bị cạn kiệt bộ nhớ. "
+                "Hãy chia nhỏ file PDF ra."
             )
 
-        # Parse JSON an toàn
         raw_json = response.text
         data = json.loads(raw_json)
         question_list = data.get("questions", [])
@@ -216,15 +296,11 @@ async def scan_images(files: List[UploadFile] = File(...), db: Session = Depends
             q_type = q.get("q_type") or "essay"
             stem = q.get("stem") or ""
 
-            # --- BẮT ĐẦU THÊM LƯỚI LỌC RÁC Ở ĐÂY ---
-            # Nếu stem rỗng (hoặc chỉ toàn dấu cách), bỏ qua luôn câu này!
             if not stem.strip():
                 continue
-            # --- KẾT THÚC THÊM LƯỚI LỌC ---
 
             level = q.get("level") or "TH"
             
-            # GET AN TOÀN CHỐNG CRASH HỆ THỐNG KHI VALUE = None
             options = q.get("options") or []
             while len(options) < 4: options.append("") 
             
@@ -318,7 +394,6 @@ async def generate_exam(
     if not random_questions:
         return {"status": "error", "message": "Không tìm thấy câu hỏi!"}
 
-    # THUẬT TOÁN GOM NHÓM ĐỂ IN ĐỀ THI
     exam_code = f"// ĐỀ THI TỰ ĐỘNG: {limit} CÂU\n"
     if chapter: 
         exam_code += f"#heading(level: 1)[Chương: {chapter}]\n\n"
@@ -339,18 +414,12 @@ async def generate_exam(
         
     return {"status": "success", "code": exam_code}
 
-# Model nhận danh sách ID cần xóa
-class DeleteRequest(BaseModel):
-    ids: List[int]
-
-# API: Xóa một hoặc nhiều câu hỏi cùng lúc
 @app.post("/api/questions/delete-bulk")
 async def delete_questions_bulk(req: DeleteRequest, db: Session = Depends(get_db)):
     try:
         if not req.ids:
             return {"status": "error", "message": "Không có câu hỏi nào được chọn!"}
             
-        # Xóa hàng loạt các ID có trong danh sách
         db.query(models.Question).filter(models.Question.id.in_(req.ids)).delete(synchronize_session=False)
         db.commit()
         

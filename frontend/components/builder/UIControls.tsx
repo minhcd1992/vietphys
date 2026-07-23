@@ -25,9 +25,14 @@ export const ColorControl = ({ label, value, onChange }: any) => {
     <div>
       <label className="block text-[11px] font-bold text-gray-500 mb-2">{label}</label>
       <div className="flex gap-2 items-center">
-        <div className="relative w-8 h-8 rounded border border-gray-300 shadow-sm flex-shrink-0" style={{ background: value && value !== 'none' ? getHex(value) : 'url("data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAoAAAAKCAYAAACNMs+9AAAAKUlEQVQYlWP8//8/AwgwMTAwMDIwMAJiFAZKAWEoA4Qn6kJUc4B+BAA0HwQxXJp5IwAAAABJRU5ErkJggg==")', backgroundSize: 'cover' }}>
-          <input type="color" value={getHex(value)} onChange={(e) => onChange(e.target.value)} className="absolute inset-0 w-full h-full opacity-0 cursor-pointer" />
-        </div>
+        <div className="relative w-8 h-8 rounded border border-gray-300 shadow-sm flex-shrink-0" 
+             style={
+                value === 'none' 
+                ? { backgroundImage: 'url(data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAoAAAAKCAYAAACNMs+9AAAAAXNSR0IArs4c6QAAACVJREFUKFNjZCASMDKgAhjg////Pwz4ACNAYtRmRBXjM4wQwwEAi1YIEW8180EAAAAASUVORK5CYII=)', backgroundSize: '10px 10px' }
+                : { backgroundColor: value }
+             }>
+             <input type="color" value={getHex(value)} onChange={(e) => onChange(e.target.value)} className="absolute inset-0 opacity-0 cursor-pointer w-full h-full" />
+          </div>
         <input type="text" value={value || 'none'} onChange={(e) => onChange(e.target.value)} className="flex-1 border p-1.5 text-xs rounded font-mono text-gray-600 outline-none focus:border-blue-500" />
         <button onClick={() => onChange('none')} className="px-2 py-1.5 bg-gray-100 hover:bg-gray-200 border rounded text-[10px] font-bold text-gray-500" title="Xóa màu">✕</button>
       </div>
