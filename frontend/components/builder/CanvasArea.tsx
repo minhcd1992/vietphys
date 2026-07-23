@@ -9,6 +9,7 @@ export default function CanvasArea() {
   const [viewMode, setViewMode] = useState<"preview" | "code">("preview");
   const [generatedTypst, setGeneratedTypst] = useState("");
   const [isCompiling, setIsCompiling] = useState(false);
+  const [zoom, setZoom] = useState(1);
   
   const [customChapterTpls, setCustomChapterTpls] = useState<any[]>([]);
   const [customLessonTpls, setCustomLessonTpls] = useState<any[]>([]);
@@ -23,6 +24,16 @@ export default function CanvasArea() {
     const storedSec = localStorage.getItem('vp_custom_section_tpls');
     if (storedSec) setCustomSectionTpls(JSON.parse(storedSec));
   }, [rootNode]);
+
+  const paperSize = rootNode.properties?.paperSize || 'a4';
+  const canvasWidth = paperSize === 'a5' ? 559 : 794; 
+  const canvasMinHeight = paperSize === 'a5' ? 794 : 1123;
+
+  const getPx = (val?: string, defaultVal = '15') => parseInt(val?.replace('pt', '') || defaultVal);
+  const paddingTop = getPx(rootNode.properties?.marginTop);
+  const paddingRight = getPx(rootNode.properties?.marginRight);
+  const paddingBottom = getPx(rootNode.properties?.marginBottom);
+  const paddingLeft = getPx(rootNode.properties?.marginLeft);
 
   const injectDataToTemplate = (tplNode: any, data: {num?: string, title?: string}): any => {
       const clone = JSON.parse(JSON.stringify(tplNode)); 
@@ -144,10 +155,13 @@ export default function CanvasArea() {
     } else if (p.bgType === 'image' && p.bgImage) {
         bgColorCss = 'transparent';
         let cleanBgImage = extractImgString(p.bgImage);
-        let dynamicThemeColorHex = p.color || '#1890FF'; // Lấy màu hiện tại
+        let dynamicThemeColorHex = p.color || '#1890FF'; 
         
         if (cleanBgImage.startsWith('<svg')) {
-            // Thay thế từ khóa ma thuật
+            // 🌟 FIX TRÙM CUỐI: Ép Trình duyệt bóp méo ảnh SVG y như Typst 🌟
+            if (!cleanBgImage.includes('preserveAspectRatio')) {
+                cleanBgImage = cleanBgImage.replace(/<svg/i, '<svg preserveAspectRatio="none"');
+            }
             cleanBgImage = cleanBgImage.replace(/\{\{color\}\}/gi, dynamicThemeColorHex);
             cleanBgImage = `data:image/svg+xml,${encodeURIComponent(cleanBgImage)}`;
         } else if (cleanBgImage.startsWith('data:image/svg+xml')) {
@@ -159,11 +173,11 @@ export default function CanvasArea() {
             } else {
                try { rawSvg = decodeURIComponent(svgData); } catch(e) { rawSvg = unescape(svgData); }
             }
-            
-            // Thay thế từ khóa ma thuật
+            // 🌟 FIX TRÙM CUỐI: Ép Trình duyệt bóp méo ảnh SVG y như Typst 🌟
+            if (!rawSvg.includes('preserveAspectRatio')) {
+                rawSvg = rawSvg.replace(/<svg/i, '<svg preserveAspectRatio="none"');
+            }
             rawSvg = rawSvg.replace(/\{\{color\}\}/gi, dynamicThemeColorHex);
-            
-            // Đóng gói lại
             cleanBgImage = `data:image/svg+xml;base64,${btoa(unescape(encodeURIComponent(rawSvg)))}`;
         }
 
@@ -175,7 +189,7 @@ export default function CanvasArea() {
             bgRepeatCss = 'repeat';
         } else {
             bgSizeCss = p.bgImageDisplay === 'stretch' ? '100% 100%' : (p.bgImageDisplay || 'cover');
-            bgPosCss = 'center';
+            bgPosCss = 'top left'; 
             bgRepeatCss = 'no-repeat';
         }
     }
@@ -357,6 +371,16 @@ export default function CanvasArea() {
       <div className="h-12 bg-white flex justify-between items-center border-b px-4 shadow-sm z-20">
          <div className="font-bold text-gray-700 text-sm"><span>📄</span> Document Canvas</div>
          <div className="flex gap-4 items-center">
+           {viewMode === "preview" && (
+             <div className="flex items-center gap-3 bg-gray-100 px-3 py-1 rounded-md text-xs font-bold text-gray-600 shadow-inner">
+               <button onClick={() => setZoom(z => Math.max(0.5, z - 0.1))} className="hover:text-blue-600 transition-colors w-4"><i className="fas fa-minus"></i></button>
+               <span className="w-10 text-center select-none">{Math.round(zoom * 100)}%</span>
+               <button onClick={() => setZoom(z => Math.min(2.0, z + 0.1))} className="hover:text-blue-600 transition-colors w-4"><i className="fas fa-plus"></i></button>
+             </div>
+           )}
+
+           <div className="w-px h-6 bg-gray-300 mx-1"></div>
+
            <button onClick={handleDownloadPDF} disabled={isCompiling} className={`px-4 py-1.5 text-white text-xs font-bold rounded shadow transition-colors flex items-center gap-2 ${isCompiling ? 'bg-gray-400 cursor-not-allowed' : 'bg-[#e91e63] hover:bg-[#c2185b]'}`}>
              {isCompiling ? <i className="fas fa-spinner fa-spin"></i> : <i className="fas fa-file-pdf"></i>}
              {isCompiling ? 'ĐANG BIÊN DỊCH...' : 'XUẤT FILE PDF'}
@@ -375,15 +399,31 @@ export default function CanvasArea() {
       </div>
       <div className="flex-1 p-8 overflow-y-auto custom-scrollbar flex justify-center pb-40 bg-[#e9ebee]">
         {viewMode === "preview" ? (
-          <div className="w-[850px] min-h-[1000px] bg-white shadow-xl flex flex-col relative" onDragOver={(e) => { e.preventDefault(); e.stopPropagation(); }} onDrop={(e) => { e.preventDefault(); e.stopPropagation(); handleDrop(e, rootNode.id, rootNode.children?.length || 0); }}>
-            <DropZone parentId={rootNode.id} index={0} direction={rootNode.properties.direction} />
-            {rootNode.children?.map((child, index) => (
-              <React.Fragment key={child.id}>
-                <RecursiveNode node={child} index={index} />
-                <DropZone parentId={rootNode.id} index={index + 1} direction={rootNode.properties.direction} />
-              </React.Fragment>
-            ))}
+          
+          <div style={{ transform: `scale(${zoom})`, transformOrigin: 'top center', transition: 'transform 0.2s ease-out' }}>
+              <div 
+                className="bg-white shadow-2xl flex flex-col relative"
+                style={{
+                  width: `${canvasWidth}px`,
+                  minHeight: `${canvasMinHeight}px`,
+                  padding: `${paddingTop}px ${paddingRight}px ${paddingBottom}px ${paddingLeft}px`
+                }}
+                onDragOver={(e) => { e.preventDefault(); e.stopPropagation(); }} 
+                onDrop={(e) => { e.preventDefault(); e.stopPropagation(); handleDrop(e, rootNode.id, rootNode.children?.length || 0); }}
+              >
+                <div className="absolute inset-0 pointer-events-none border border-gray-100 z-0"></div>
+
+                <DropZone parentId={rootNode.id} index={0} direction={rootNode.properties.direction} />
+                {rootNode.children?.map((child, index) => (
+                  <React.Fragment key={child.id}>
+                    <RecursiveNode node={child} index={index} />
+                    <DropZone parentId={rootNode.id} index={index + 1} direction={rootNode.properties.direction} />
+                  </React.Fragment>
+                ))}
+              </div>
+
           </div>
+
         ) : (
           <div className="w-[850px] max-h-[85vh] overflow-y-auto custom-scrollbar bg-[#1e1e1e] p-6 rounded-lg font-mono text-[13px] leading-relaxed text-[#d4d4d4] whitespace-pre-wrap shadow-2xl border border-gray-700">
              {generatedTypst}
