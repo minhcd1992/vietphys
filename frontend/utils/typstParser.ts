@@ -1,4 +1,5 @@
 import { BuilderNode } from "../store/builderStore";
+import { getTemplateCode } from "./templateRegistry"; // 🌟 Import Kho Mẫu Cứng
 
 export const generateTypstCode = (rootNode: BuilderNode): string => {
   let headerCode = "";
@@ -6,7 +7,7 @@ export const generateTypstCode = (rootNode: BuilderNode): string => {
   const rp = rootNode.properties || {};
 
   let code = `#import "/vietphys-package/vietphys.typ": *\n`;
-  code += `#set text(lang: "vi")\n`;
+  code += `#set text(lang: "vi", font: ("Arial", "Helvetica", "Noto Sans", "Liberation Sans"))\n`;
   
   if (rp.paperSize === 'a5') {
       code += `#set page(paper: "a5", margin: (top: ${rp.marginTop||'15pt'}, right: ${rp.marginRight||'15pt'}, bottom: ${rp.marginBottom||'15pt'}, left: ${rp.marginLeft||'15pt'}))\n\n`;
@@ -14,6 +15,7 @@ export const generateTypstCode = (rootNode: BuilderNode): string => {
       code += `#set page(paper: "a4", margin: (top: ${rp.marginTop||'15pt'}, right: ${rp.marginRight||'15pt'}, bottom: ${rp.marginBottom||'15pt'}, left: ${rp.marginLeft||'15pt'}))\n\n`;
   }
 
+  // 1. Tải các mẫu LINH HOẠT từ LocalStorage
   let customChapterTpls: any[] = [];
   let customLessonTpls: any[] = [];
   let customSectionTpls: any[] = [];
@@ -26,16 +28,24 @@ export const generateTypstCode = (rootNode: BuilderNode): string => {
      if (storedSec) customSectionTpls = JSON.parse(storedSec);
   } catch (e) {}
 
-  const injectDataToTemplate = (tplNode: any, data: {num?: string, title?: string}): any => {
+  // 2. Hàm Bơm Dữ Liệu (Text, Màu sắc, Font) vào mẫu linh hoạt
+  const injectDataToTemplate = (tplNode: any, data: {num?: string, title?: string}, themeProps?: any): any => {
       const clone = JSON.parse(JSON.stringify(tplNode));
       const replaceText = (str: string) => {
           if (!str || typeof str !== 'string') return str;
           return str.replace(/\{\{num\}\}/g, data.num || '').replace(/\{\{title\}\}/g, data.title || '');
       };
       const traverse = (n: any) => {
+          if (n.id && !n.id.startsWith('virtual_')) n.id = `virtual_${Math.random().toString(36).substr(2, 9)}`;
           if (n.properties) {
               if (n.properties.content) n.properties.content = replaceText(n.properties.content);
               if (n.properties.title) n.properties.title = replaceText(n.properties.title);
+              
+              // Nhuộm màu và đổi font cho các phần tử con
+              if (themeProps) {
+                  if (themeProps.color) n.properties.color = themeProps.color;
+                  if (themeProps.fontFamily && n.moduleName === "Text") n.properties.fontFamily = themeProps.fontFamily;
+              }
           }
           if (n.children) n.children.forEach(traverse);
       };
@@ -80,13 +90,10 @@ export const generateTypstCode = (rootNode: BuilderNode): string => {
 
       if (p.bgType === 'gradient') {
           bgStr = `gradient.linear(${formatColor(p.bgGradientStart || '#1890FF')}, ${formatColor(p.bgGradientEnd || '#722ED1')}, angle: ${p.gradientAngle || 135}deg)`;
-      } 
-      else if (p.bgType === 'image' && p.bgImage) {
+      } else if (p.bgType === 'image' && p.bgImage) {
           bgStr = "none"; 
           let cleanBgImage = extractImgString(p.bgImage);
           let imgTypst = "";
-          let isPattern = (p.bgImageDisplay === 'pattern');
-          
           let dynamicThemeColorHex = p.color || '#1890FF';
 
           if (cleanBgImage.startsWith('<svg') || cleanBgImage.startsWith('data:image/svg+xml')) {
@@ -97,282 +104,186 @@ export const generateTypstCode = (rootNode: BuilderNode): string => {
                   let isBase64 = cleanBgImage.includes(';base64,');
                   let svgData = cleanBgImage.substring(cleanBgImage.indexOf(',') + 1);
                   if (isBase64) {
-                      try { rawSvg = decodeURIComponent(escape(atob(svgData))); } 
-                      catch(e) { try { rawSvg = atob(svgData); } catch (err) { rawSvg = ""; } }
+                      try { rawSvg = decodeURIComponent(escape(atob(svgData))); } catch(e) { try { rawSvg = atob(svgData); } catch (err) { rawSvg = ""; } }
                   } else {
-                      try { rawSvg = decodeURIComponent(svgData); }
-                      catch (e) { rawSvg = unescape(svgData); }
+                      try { rawSvg = decodeURIComponent(svgData); } catch (e) { rawSvg = unescape(svgData); }
                   }
               }
-
               rawSvg = rawSvg.replace(/\{\{color\}\}/gi, dynamicThemeColorHex);
               let escapedSvg = rawSvg.replace(/"/g, '\\"').replace(/\n/g, ' ');
               imgTypst = `image(bytes("${escapedSvg}"), format: "svg")`;
-          } 
-          else if (cleanBgImage.startsWith('data:image/')) {
-              imgTypst = `none /* Ảnh Base64 PNG/JPG quá dài */`;
-          } 
-          else {
+          } else if (cleanBgImage.startsWith('data:image/')) {
+              imgTypst = `none /* Base64 Image */`;
+          } else {
               imgTypst = `image("${escapeTypstString(cleanBgImage)}")`;
           }
 
           if (!imgTypst.startsWith('none')) {
-              if (isPattern) {
+              if (p.bgImageDisplay === 'pattern') {
                   let stretchedImg = imgTypst.replace(/\)$/, ', width: 100%, height: 100%)');
                   bgStr = `tiling(size: (${p.bgPatternW || '60pt'}, ${p.bgPatternH || '60pt'}))[#${stretchedImg}]`;
               } else {
                   bgStr = "none";
-                  let fitStr = "";
-                  if (p.bgImageDisplay === 'stretch') fitStr = `, width: 100%, height: 100%, fit: "stretch"`;
-                  else if (p.bgImageDisplay === 'contain') fitStr = `, width: 100%, height: 100%, fit: "contain"`;
-                  else fitStr = `, width: 100%, height: 100%, fit: "cover"`;
-                  
+                  let fitStr = p.bgImageDisplay === 'stretch' ? `, width: 100%, height: 100%, fit: "stretch"` : (p.bgImageDisplay === 'contain' ? `, width: 100%, height: 100%, fit: "contain"` : `, width: 100%, height: 100%, fit: "cover"`);
                   placeImageOverlay = `#place(top + left)[#block(width: 100%, height: 100%)[#${imgTypst.replace(/\)$/, fitStr + ')')}]\n${indent}      ]\n${indent}      `;
               }
           }
-      } 
-      else {
-          bgStr = formatColor(p.bg);
-      }
+      } else { bgStr = formatColor(p.bg); }
 
-      let borderStr = "";
-      if (p.borderLinked !== false && p.borderStyle && p.borderStyle !== 'none') {
-         borderStr = `border: ${formatBorder(p)}, `;
-      } else if (p.borderLinked === false) {
-         borderStr = `border: (top: ${formatBorder(p, 'Top')}, right: ${formatBorder(p, 'Right')}, bottom: ${formatBorder(p, 'Bottom')}, left: ${formatBorder(p, 'Left')}), `;
-      }
-
-      let radiusStr = p.radiusLinked !== false ? p.radius || '0pt' : `(top-left: ${p.radiusTopLeft||'0pt'}, top-right: ${p.radiusTopRight||'0pt'}, bottom-right: ${p.radiusBottomRight||'0pt'}, bottom-left: ${p.radiusBottomLeft||'0pt'})`;
-      let paddingStr = p.paddingLinked !== false ? p.padding || '0pt' : `(top: ${p.paddingTop||'0pt'}, right: ${p.paddingRight||'0pt'}, bottom: ${p.paddingBottom||'0pt'}, left: ${p.paddingLeft||'0pt'})`;
-      let marginStr = p.marginLinked !== false ? p.margin || '0pt' : `(top: ${p.marginTop||'0pt'}, right: ${p.marginRight||'0pt'}, bottom: ${p.marginBottom||'0pt'}, left: ${p.marginLeft||'0pt'})`;
+      let borderStr = p.borderLinked !== false && p.borderStyle && p.borderStyle !== 'none' ? `border: ${formatBorder(p)}, ` : (p.borderLinked === false ? `border: (top: ${formatBorder(p, 'Top')}, right: ${formatBorder(p, 'Right')}, bottom: ${formatBorder(p, 'Bottom')}, left: ${formatBorder(p, 'Left')}), ` : "");
+      let radiusStr = p.radiusLinked !== false ? (p.radius && p.radius !== '0pt' ? `radius: ${p.radius}, ` : "") : `radius: (top-left: ${p.radiusTopLeft||'0pt'}, top-right: ${p.radiusTopRight||'0pt'}, bottom-right: ${p.radiusBottomRight||'0pt'}, bottom-left: ${p.radiusBottomLeft||'0pt'}), `;
+      let paddingStr = p.paddingLinked !== false ? (p.padding && p.padding !== '0pt' ? `padding: ${p.padding}, ` : "") : `padding: (top: ${p.paddingTop||'0pt'}, right: ${p.paddingRight||'0pt'}, bottom: ${p.paddingBottom||'0pt'}, left: ${p.paddingLeft||'0pt'}), `;
+      let marginStr = p.marginLinked !== false ? (p.margin && p.margin !== '0pt' ? `margin: ${p.margin}, ` : "") : `margin: (top: ${p.marginTop||'0pt'}, right: ${p.marginRight||'0pt'}, bottom: ${p.marginBottom||'0pt'}, left: ${p.marginLeft||'0pt'}), `;
 
       switch (node.moduleName) {
           case "Container": {
-              let absChildren = "";
-              let flowChildren = "";
-              
-              if (node.children && node.children.length > 0) {
-                  node.children.forEach((c: any) => {
-                      if (c.properties?.position === 'absolute') {
-                          absChildren += renderNode(c, indent + "        ");
-                      } else {
-                          flowChildren += renderNode(c, indent + "          ");
-                      }
-                  });
-              }
-              
-              let flowCode = "";
-              if (flowChildren !== "") {
-                  if (p.layoutType === 'grid') {
-                     let cols = p.gridCols || "1fr 1fr";
-                     let typstCols = cols.split(/\s+/).filter(Boolean).join(", ");
-                     flowCode = `#grid(columns: (${typstCols}), column-gutter: ${p.gap || "0pt"}, row-gutter: ${p.gap || "0pt"}, align: ${p.align || 'left'})[\n${flowChildren}${indent}        ]`;
-                  } else {
-                     let dir = p.direction === 'row' ? 'ltr' : 'ttb';
-                     flowCode = `#stack(dir: ${dir}, spacing: ${p.gap || "0pt"})[\n${flowChildren}${indent}        ]`;
-                  }
+              let innerCode = "";
+              if (node.children) innerCode = node.children.map(c => renderNode(c, indent + "      ")).join("");
+
+              let containerContent = innerCode;
+              if (p.layoutType === 'grid') {
+                  const cols = p.gridCols || "1fr 1fr";
+                  containerContent = `#grid(columns: (${cols.split(/\s+/).filter(Boolean).join(", ")}), column-gutter: ${p.gap || '0pt'}, row-gutter: ${p.gap || '0pt'},\n${indent}      ${innerCode}\n${indent}    )`;
+              } else if (p.direction === 'row') {
+                  containerContent = `#stack(dir: ltr, spacing: ${p.gap || '0pt'},\n${indent}      ${innerCode}\n${indent}    )`;
+              } else {
+                  containerContent = `#stack(dir: ttb, spacing: ${p.gap || '0pt'},\n${indent}      ${innerCode}\n${indent}    )`;
               }
 
-              let paddedFlow = `#pad(${paddingStr})[\n${indent}          ${flowCode || '#v(0pt)'}\n${indent}        ]`;
-
-              let coreContent = "";
-              if (placeImageOverlay) coreContent += placeImageOverlay; 
-              if (absChildren) coreContent += absChildren;             
-              coreContent += paddedFlow;                               
-
-              let blockCode = `#block(width: 100%${p.height && p.height !== 'auto' ? `, height: ${p.height}` : ''})[\n${indent}        ${coreContent}\n${indent}      ]`;
-
-              out += `${indent}#pad(${marginStr})[\n`;
-              out += `${indent}  #vp-css-box(bg: ${bgStr}, ${borderStr}radius: ${radiusStr}, padding: 0pt, width: ${p.width || '100%'})[\n`;
-              out += `${indent}    #align(${p.align || "left"})[\n`;
-              out += `${indent}      ${blockCode}\n`;
-              out += `${indent}    ]\n`;
-              out += `${indent}  ]\n`;
-              out += `${indent}]\n`;
+              let boxCode = `#block(width: ${p.width || '100%'}, ${p.height && p.height !== 'auto' ? `height: ${p.height}, ` : ""})[\n`;
+              boxCode += `${indent}  #vp-css-box(bg: ${bgStr}, ${radiusStr}${paddingStr}${marginStr}${borderStr}width: 100%, ${p.height && p.height !== 'auto' ? `height: 100%` : ""})[\n`;
+              boxCode += `${indent}    #align(${p.align || 'left'})[\n`;
+              if (placeImageOverlay) boxCode += `${indent}      ${placeImageOverlay}\n`;
+              boxCode += `${indent}      ${containerContent}\n`;
+              boxCode += `${indent}    ]\n`;
+              boxCode += `${indent}  ]\n`;
+              boxCode += `${indent}]\n`;
+              out += boxCode;
               break;
           }
           
           case "Text": {
-              let txtContent = p.content || "";
-              let fontCode = p.fontFamily ? `font: "${p.fontFamily}", ` : "";
-              let weightCode = p.fontWeight === '900' ? 'black' : (p.fontWeight === 'bold' ? 'bold' : 'regular');
-              let trackingCode = p.letterSpacing && p.letterSpacing !== '0pt' ? `tracking: ${p.letterSpacing}, ` : "";
-
-              let textCode = `#text(${fontCode}fill: ${formatColor(p.color || '#000000')}, size: ${p.fontSize || 12}${p.fontUnit || 'pt'}, weight: "${weightCode}", ${trackingCode})[\n`;
-              
-              // 🌟 ÉP TYPST XUỐNG DÒNG: Tự động chèn dấu Backslash (\) trước mỗi ký tự \n 🌟
-              txtContent = txtContent
-                  .replace(/\*(.*?)\*/g, '#strong[$1]')
-                  .replace(/_(.*?)_/g, '#emph[$1]')
-                  .replace(/#text\(\s*size:\s*([^,)]+)[^)]*\)\s*\[(.*?)\]/g, '#text(size: $1)[$2]')
-                  .replace(/<br\s*\/?>/gi, '\n') // Quy chuẩn <br> thành \n
-                  .replace(/\n/g, '\\ \n' + indent + '          '); // Ép Typst xuống dòng cứng
-
-              textCode += `${indent}          ${txtContent}\n`;
-              textCode += `${indent}        ]`;
-
-              let paddedFlow = `#pad(${paddingStr})[\n${indent}          ${textCode}\n${indent}        ]`;
-
-              let coreContent = "";
-              if (placeImageOverlay) coreContent += placeImageOverlay;
-              coreContent += paddedFlow;
-
-              let blockCode = `#block(width: 100%${p.height && p.height !== 'auto' ? `, height: ${p.height}` : ''})[\n${indent}        ${coreContent}\n${indent}      ]`;
-
-              out += `${indent}#pad(${marginStr})[\n`;
-              out += `${indent}  #vp-css-box(bg: ${bgStr}, ${borderStr}radius: ${radiusStr}, padding: 0pt, width: ${p.width || '100%'})[\n`;
-              out += `${indent}    #align(${p.align || "left"})[\n`;
-              out += `${indent}      ${blockCode}\n`;
-              out += `${indent}    ]\n`;
-              out += `${indent}  ]\n`;
-              out += `${indent}]\n`;
+              const fontStr = p.fontFamily ? `font: "${p.fontFamily}", ` : ``;
+              let textContent = p.content || "";
+              out += `${indent}#pad(${p.padding || '0pt'})[\n${indent}  #text(${fontStr}fill: ${formatColor(p.color)}, size: ${p.fontSize || 12}${p.fontUnit || 'pt'}, weight: "${p.fontWeight || 'regular'}", tracking: ${p.letterSpacing || '0pt'})[\n${indent}    ${textContent.replace(/\n/g, '\\\n' + indent + '    ')}\n${indent}  ]\n${indent}]\n`;
               break;
           }
           
+          case "Box": {
+              let boxType = "info";
+              if (p.boxType === 'warning') boxType = "warning";
+              if (p.boxType === 'tip') boxType = "tip";
+              out += `${indent}#vp-box(type: "${boxType}", title: "${escapeTypstString(p.title)}")[\n${indent}  ${(p.content || "").replace(/\n/g, '\n' + indent + '  ')}\n${indent}]\n`;
+              break;
+          }
+          
+          case "Image": {
+              out += `${indent}#align(${p.align || 'center'})[#image("${escapeTypstString(p.content)}", width: ${p.width || 100}%)]\n`;
+              break;
+          }
+          
+          case "Icon": {
+              const faName = p.iconName ? p.iconName.replace('fa-', '') : 'star';
+              out += `${indent}#text(fill: ${formatColor(p.color)}, size: ${p.fontSize || 12}pt)[#fa-icon("${faName}")]\n`;
+              break;
+          }
+          
+          case "RawTypst": {
+              out += `${indent}${p.content}\n`;
+              break;
+          }
+
+          case "QuestionBlock": {
+              if (p.questionData && p.questionData.length > 0) {
+                  const items = p.questionData.map((q: any) => {
+                      const opts = q.options && q.options.length > 0 && q.options[0] !== "" 
+                         ? `options: (${q.options.map((opt: string) => `[${opt.replace(/\n/g, ' ')}]`).join(", ")}), layout: ${p.optionsLayout || 4},` 
+                         : "";
+                      const lvl = rp.qShowLevel !== false && q.level ? `level: "${q.level}",` : "";
+                      const src = rp.qShowSource !== false && q.topic ? `source: "${q.topic}",` : "";
+                      const sol = rp.qShowSolution === true && q.solution ? `solution: [${q.solution.replace(/\n/g, '\n' + indent + '    ')}],` : "";
+                      return `${indent}  (stem: [${q.stem.replace(/\n/g, '\n' + indent + '    ')}], ${opts} ${lvl} ${src} ${sol}),`;
+                  }).join("\n");
+                  
+                  let configStr = "";
+                  if (rp.qPrefix) configStr += `prefix: "${rp.qPrefix}", `;
+                  if (rp.qColor) configStr += `color: ${formatColor(rp.qColor)}, `;
+                  if (rp.qBg) configStr += `bg: ${formatColor(rp.qBg)}, `;
+                  if (rp.qLevelColor) configStr += `level-color: ${formatColor(rp.qLevelColor)}, `;
+                  if (rp.qSourceColor) configStr += `source-color: ${formatColor(rp.qSourceColor)}, `;
+
+                  out += `${indent}#vp-render-questions(${configStr}questions: (\n${items}\n${indent}))\n`;
+              }
+              break;
+          }
+          
+          case "Form": {
+              out += `${indent}#vp-form(num: "${escapeTypstString(p.num)}", title: "${escapeTypstString(p.title)}")\n`;
+              break;
+          }
+
+          // 🌟🌟🌟 DUAL-ENGINE: KIỂM TRA LINH HOẠT TRƯỚC, CODE CỨNG SAU 🌟🌟🌟
           case "Chapter": {
-              const tplC = p.template && p.template !== 'global' ? p.template : (rp.tplChapter || 'A');
-              const colC = formatColor(p.color || '#1890FF');
-              if (tplC === 'A') {
-                  out += `${indent}#v(15pt)\n${indent}#vp-css-box(align(center)[#upper("${escapeTypstString(p.title)}")], border: (paint: ${colC}, thickness: 1pt, dash: "dashed"), padding: (top: 22pt, bottom: 15pt, x: 15pt), text-color: ${colC}, text-size: 22pt, label-top-left: (text: "Chương ${escapeTypstString(p.num)}", bg: ${colC}, color: white, size: 14pt, dx: 15pt, dy: -14pt))\n${indent}#v(10pt)\n`;
-              } else if (tplC === 'B') {
-                  out += `${indent}#v(10pt)\n${indent}#vp-css-box(bg: ${colC}, padding: 20pt, radius: 8pt)[\n${indent}  #align(center)[\n${indent}    #text(fill: white.darken(20%), size: 14pt, weight: "bold")[CHƯƠNG ${escapeTypstString(p.num)}]\n${indent}    #v(5pt)\n${indent}    #text(fill: white, size: 24pt, weight: "bold")[#upper("${escapeTypstString(p.title)}")]\n${indent}  ]\n${indent}]\n${indent}#v(10pt)\n`;
+              let tplC = p.template && p.template !== 'global' ? p.template : (rp.tplChapter || 'A');
+              // Quy đổi ID cũ sang ID cứng mới
+              if (tplC === 'A') tplC = 'chap_dashed_box';
+              if (tplC === 'B') tplC = 'chap_hexagon';
+              
+              const customTpl = customChapterTpls.find((t: any) => t.id === tplC);
+              if (customTpl && customTpl.nodeData) {
+                  // Gặp Mẫu Linh hoạt => Bơm biến p và biên dịch đệ quy
+                  const virtualNode = injectDataToTemplate(customTpl.nodeData, { num: p.num, title: p.title }, p);
+                  out += renderNode(virtualNode, indent);
               } else {
-                  const customTpl = customChapterTpls.find((t: any) => t.id === tplC);
-                  if (customTpl && customTpl.nodeData) {
-                      const virtualNode = injectDataToTemplate(customTpl.nodeData, { num: p.num, title: p.title });
-                      out += renderNode(virtualNode, indent);
-                  } else {
-                      out += `${indent}#text(fill: red)[Lỗi: Không tìm thấy Mẫu Tùy Chỉnh!]\n`;
-                  }
+                  // Không thấy => Gọi thẳng code cứng từ thư viện Registry
+                  out += getTemplateCode('chapter', tplC, {
+                      num: p.num || "1", title: p.title || "TÊN CHƯƠNG",
+                      color: p.color, fontFamily: p.fontFamily,
+                      numSize: p.numSize, titleSize: p.titleSize
+                  });
               }
               break;
           }
           
           case "Lesson": {
-              const tplL = p.template && p.template !== 'global' ? p.template : (rp.tplLesson || 'A');
-              const colL = formatColor(p.color || '#1890FF');
-              if (tplL === 'A') {
-                  out += `${indent}#v(12pt)\n${indent}#vp-css-box([BÀI ${escapeTypstString(p.num)}: #upper("${escapeTypstString(p.title)}")], icon: fa-pen(), bg: ${colL}, border: (left: 6pt + rgb("#FF7A1D")), shadow: (dx: 3pt, dy: 3pt, color: black.lighten(20%)), padding: (x: 16pt, y: 12pt), text-color: white, text-size: 16pt)\n${indent}#v(8pt)\n`;
-              } else if (tplL === 'B') {
-                  out += `${indent}#v(10pt)\n${indent}#vp-css-box(bg: ${colL}.lighten(90%), border: 1.5pt + ${colL}, radius: 20pt, padding: (x: 16pt, y: 10pt), text-color: ${colL}, text-size: 16pt)[#align(center)[BÀI ${escapeTypstString(p.num)}: ${escapeTypstString(p.title)}]]\n${indent}#v(10pt)\n`;
+              let tplL = p.template && p.template !== 'global' ? p.template : (rp.tplLesson || 'A');
+              // Quy đổi ID cũ sang ID cứng mới (Nếu có)
+              if (tplL === 'A' || tplL === 'B') tplL = 'less_ribbon_pen';
+
+              const customTpl = customLessonTpls.find((t: any) => t.id === tplL);
+              if (customTpl && customTpl.nodeData) {
+                  const virtualNode = injectDataToTemplate(customTpl.nodeData, { num: p.num, title: p.title }, p);
+                  out += renderNode(virtualNode, indent);
               } else {
-                  const customTpl = customLessonTpls.find((t: any) => t.id === tplL);
-                  if (customTpl && customTpl.nodeData) {
-                      const virtualNode = injectDataToTemplate(customTpl.nodeData, { num: p.num, title: p.title });
-                      out += renderNode(virtualNode, indent);
-                  } else {
-                      out += `${indent}#text(fill: red)[Lỗi: Không tìm thấy Mẫu Tùy Chỉnh!]\n`;
-                  }
+                  out += getTemplateCode('lesson', tplL, {
+                      num: p.num || "1", title: p.title || "TÊN BÀI",
+                      color: p.color, fontFamily: p.fontFamily,
+                      numSize: p.numSize, titleSize: p.titleSize
+                  });
               }
               break;
           }
           
           case "Section": {
-              const tplS = p.template && p.template !== 'global' ? p.template : (rp.tplSection || 'A');
-              const colS = formatColor(p.color || '#1890FF');
-              if (tplS === 'A') {
-                  out += `${indent}#v(12pt)\n${indent}#grid(columns: (auto, 1fr), column-gutter: 10pt, align: (center + horizon, left + horizon), box(fill: ${colS}, radius: 4pt, width: 2.2em, height: 2.2em)[#place(center + horizon)[#text(fill: white, size: 1.2em)[#fa-star()]]], block(width: 100%, stroke: (bottom: 1.5pt + ${colS}.lighten(30%)), inset: (bottom: 8pt))[#text(fill: ${colS}, weight: "bold", size: 14pt)[${escapeTypstString(p.num)}. #upper("${escapeTypstString(p.title)}")]])\n${indent}#v(6pt)\n`;
-              } else if (tplS === 'B') {
-                  out += `${indent}#v(10pt)\n${indent}#block(width: 100%, stroke: (bottom: 2pt + ${colS}), inset: (bottom: 5pt))[#text(fill: ${colS}, size: 16pt, weight: "bold")[${escapeTypstString(p.num)}. ${escapeTypstString(p.title)}]]\n${indent}#v(8pt)\n`;
+              let tplS = p.template && p.template !== 'global' ? p.template : (rp.tplSection || 'A');
+              // Quy đổi ID cũ sang ID cứng mới (Nếu có)
+              if (tplS === 'A' || tplS === 'B') tplS = 'sec_star_underline';
+
+              const customTpl = customSectionTpls.find((t: any) => t.id === tplS);
+              if (customTpl && customTpl.nodeData) {
+                  const virtualNode = injectDataToTemplate(customTpl.nodeData, { num: p.num, title: p.title }, p);
+                  out += renderNode(virtualNode, indent);
               } else {
-                  const customTpl = customSectionTpls.find((t: any) => t.id === tplS);
-                  if (customTpl && customTpl.nodeData) {
-                      const virtualNode = injectDataToTemplate(customTpl.nodeData, { num: p.num, title: p.title });
-                      out += renderNode(virtualNode, indent);
-                  } else {
-                      out += `${indent}#text(fill: red)[Lỗi: Không tìm thấy Mẫu Tùy Chỉnh!]\n`;
-                  }
+                  out += getTemplateCode('section', tplS, {
+                      num: p.num || "I", title: p.title || "TIÊU ĐỀ MỤC",
+                      color: p.color, fontFamily: p.fontFamily,
+                      numSize: p.numSize, titleSize: p.titleSize
+                  });
               }
               break;
           }
-          
-          case "RawTypst": {
-              out += `${indent}${p.content || ''}\n`;
-              break;
-          }
-          
-          case "Icon": {
-              let icColor = p.color ? `fill: ${formatColor(p.color)}, ` : "";
-              let icSize = p.fontSize ? `size: ${p.fontSize}${p.fontUnit||'pt'}, ` : "";
-              out += `${indent}#text(${icColor}${icSize})[#${p.iconName || 'fa-star'}()]\n`;
-              break;
-          }
-          
-          case "Image": {
-             let w = p.width || "100";
-             out += `${indent}#align(${p.align || 'center'})[\n`;
-             out += `${indent}  #image("${p.content || 'placeholder.png'}", width: ${w}%)\n`;
-             out += `${indent}]\n`;
-             break;
-          }
-          
-          case "Box": {
-              let bType = p.boxType || 'info';
-              let bColor = bType === 'warning' ? '#FF3B1D' : bType === 'tip' ? '#52C41A' : '#1890FF';
-              let bIcon = bType === 'warning' ? 'fa-exclamation-triangle()' : bType === 'tip' ? 'fa-lightbulb()' : 'fa-bookmark()';
-              out += `${indent}#vp-css-box(bg: ${formatColor(bColor)}.lighten(90%), border: (left: 4pt + ${formatColor(bColor)}), padding: 12pt, radius: (right: 4pt))[\n`;
-              out += `${indent}  #text(fill: ${formatColor(bColor)}, weight: "bold", size: 12pt)[#${bIcon} ${escapeTypstString(p.title)}]\n`;
-              out += `${indent}  #v(4pt)\n`;
-              // Ép xuống dòng cho nội dung trong Box
-              let bContent = (p.content || "").replace(/<br\s*\/?>/gi, '\n').replace(/\n/g, '\\ \n' + indent + '    ');
-              out += `${indent}    ${bContent}\n`;
-              out += `${indent}  ]\n`;
-              out += `${indent}]\n`;
-              break;
-          }
-          
-          case "QuestionBlock": {
-              out += `${indent}#v(10pt)\n`;
-              const qs = p.questionData || [];
-              if (qs.length === 0) {
-                  out += `${indent}// Khối câu hỏi trống\n`;
-                  break;
-              }
-              
-              const gColor = rp.qColor || '#1890FF';
-              const gBg = rp.qBg || 'none';
-              const lColor = rp.qLevelColor || '#6f42c1';
-              const sColor = rp.qSourceColor || '#52C41A';
 
-              qs.forEach((q: any, i: number) => {
-                  out += `${indent}#vp-question-box(\n`;
-                  out += `${indent}  prefix: "${escapeTypstString(p.prefix || 'Câu')} ${i + 1}",\n`;
-                  out += `${indent}  color: ${formatColor(p.color || gColor)},\n`;
-                  out += `${indent}  bg: ${formatColor(p.bg || gBg)},\n`;
-                  if (q.level && rp.qShowLevel !== false) out += `${indent}  level: "${escapeTypstString(q.level)}", level-color: ${formatColor(p.levelColor || lColor)},\n`;
-                  if (q.topic && rp.qShowSource !== false) out += `${indent}  source: "${escapeTypstString(q.topic)}", source-color: ${formatColor(p.sourceColor || sColor)},\n`;
-                  out += `${indent})[\n`;
-                  
-                  // Ép xuống dòng cho nội dung câu hỏi
-                  let stem = (q.stem || "").replace(/<br\s*\/?>/gi, '\n').replace(/\n/g, '\\ \n' + indent + '  ');
-                  out += `${indent}  ${stem}\n`;
-                  out += `${indent}]\n`;
-
-                  if (p.showOptions !== false && q.options && q.options.length > 0 && q.options[0] !== "") {
-                      const optCols = p.optionsLayout || 4;
-                      out += `${indent}#v(6pt)\n`;
-                      out += `${indent}#vp-mcq-grid(columns: ${optCols})[\n`;
-                      q.options.forEach((opt: string, idx: number) => {
-                          let oText = (opt || "").replace(/<br\s*\/?>/gi, '\n').replace(/\n/g, '\\ \n' + indent + '  ');
-                          out += `${indent}  #vp-mcq-opt("${String.fromCharCode(65 + idx)}")[\n`;
-                          out += `${indent}    ${oText}\n`;
-                          out += `${indent}  ]\n`;
-                      });
-                      out += `${indent}]\n`;
-                  }
-
-                  if (p.showSolution && q.solution) {
-                      out += `${indent}#vp-solution(color: ${formatColor(p.color || gColor)})[\n`;
-                      let sol = (q.solution || "").replace(/<br\s*\/?>/gi, '\n').replace(/\n/g, '\\ \n' + indent + '  ');
-                      out += `${indent}  ${sol}\n`;
-                      out += `${indent}]\n`;
-                  }
-                  out += `${indent}#v(10pt)\n`;
-              });
-              break;
-          }
-          default:
-              break;
+          default: break;
       }
 
       if (p.position === 'absolute') {
@@ -380,32 +291,41 @@ export const generateTypstCode = (rootNode: BuilderNode): string => {
           const dy = p.top || "0%";
           out = `${indent}#place(top + left, dx: ${dx}, dy: ${dy})[\n${out}${indent}]\n`;
       }
-
       return out;
   };
 
-  if (rootNode.children) {
-      rootNode.children.forEach((child: any) => {
-          if (child.moduleName === "Header") {
-              let content = "";
-              if (child.children) content = child.children.map((c: any) => renderNode(c, "    ")).join("");
-              headerCode = `#set page(header: [\n${content}\n])\n`;
-          } else if (child.moduleName === "Footer") {
-              let content = "";
-              if (child.children) content = child.children.map((c: any) => renderNode(c, "    ")).join("");
-              footerCode = `#set page(footer: [\n${content}\n])\n`;
-          }
-      });
+  rootNode.children?.forEach(c => {
+      if (c.moduleName === "Header") {
+          headerCode = renderNode(c);
+      } else if (c.moduleName === "Footer") {
+          footerCode = renderNode(c);
+      }
+  });
+
+  if (headerCode || footerCode) {
+      code += `#set page(\n`;
+      if (headerCode) {
+          code += `  header: locate(loc => {\n`;
+          code += `    ${headerCode.trim()}\n`;
+          code += `  }),\n`;
+      }
+      if (footerCode) {
+          code += `  footer: locate(loc => {\n`;
+          code += `    ${footerCode.trim()}\n`;
+          code += `  }),\n`;
+      }
+      code += `)\n\n`;
   }
 
-  code += headerCode;
-  code += footerCode;
-  code += `\n`;
-  
-  if (rootNode.children) {
-      rootNode.children.forEach((child: any) => {
-          code += renderNode(child, "");
-      });
+  rootNode.children?.forEach(c => {
+      if (c.moduleName !== "Header" && c.moduleName !== "Footer") {
+          code += renderNode(c);
+      }
+  });
+
+  // Render bảng đáp án nếu được bật (Global setting)
+  if (rp.qShowAns === true) {
+      code += `\n#v(20pt)\n#vp-print-keys()\n`;
   }
 
   return code;

@@ -20,12 +20,14 @@ export default function LeftPanel() {
   const [customSectionTpls, setCustomSectionTpls] = useState<any[]>([]);
 
   useEffect(() => {
-    const storedChap = localStorage.getItem('vp_custom_chapter_tpls');
-    if (storedChap) setCustomChapterTpls(JSON.parse(storedChap));
-    const storedLess = localStorage.getItem('vp_custom_lesson_tpls');
-    if (storedLess) setCustomLessonTpls(JSON.parse(storedLess));
-    const storedSec = localStorage.getItem('vp_custom_section_tpls');
-    if (storedSec) setCustomSectionTpls(JSON.parse(storedSec));
+    try {
+      const storedChap = localStorage.getItem('vp_custom_chapter_tpls');
+      if (storedChap) setCustomChapterTpls(JSON.parse(storedChap));
+      const storedLess = localStorage.getItem('vp_custom_lesson_tpls');
+      if (storedLess) setCustomLessonTpls(JSON.parse(storedLess));
+      const storedSec = localStorage.getItem('vp_custom_section_tpls');
+      if (storedSec) setCustomSectionTpls(JSON.parse(storedSec));
+    } catch (e) {}
   }, []);
 
   const handleSaveAsTemplate = (type: 'Chapter' | 'Lesson' | 'Section') => {
@@ -68,7 +70,6 @@ export default function LeftPanel() {
     updateNodeProps(selectedNode.id, JSON.parse(styleStr));
   };
 
-  // HÀM XỬ LÝ UPLOAD ẢNH BASE64 LÊN TRÌNH DUYỆT
   const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file || !selectedNode) return;
@@ -163,37 +164,64 @@ export default function LeftPanel() {
              </div>
              <Accordion title="Khổ giấy & Căn lề" defaultOpen={true}>
                 <label className="block text-[11px] font-bold text-gray-500 mb-1">Khổ giấy</label>
-                <select className="w-full border p-2 text-xs rounded mb-4" value={rootNode.properties.paperSize || "a4"} onChange={e => updateNodeProps(rootNode.id, { paperSize: e.target.value })}>
+                <select className="w-full border p-2 text-xs rounded mb-4 outline-none focus:border-blue-500" value={rootNode.properties.paperSize || "a4"} onChange={e => updateNodeProps(rootNode.id, { paperSize: e.target.value })}>
                    <option value="a4">A4 Chuẩn</option><option value="a5">A5 Sách nhỏ</option>
                 </select>
                 <FourWaySpacing label="Margin (Lề trang)" prefix="margin" properties={rootNode.properties} onChange={(k:string, v:string) => updateNodeProps(rootNode.id, { [k]: v })} />
              </Accordion>
+             
              <Accordion title="Mẫu Giao Diện (Templates)" defaultOpen={true}>
                 <div className="space-y-4">
                   <div>
                     <label className="block text-[11px] font-bold text-gray-500 mb-1">Mẫu Chương (Chapter)</label>
-                    <select className="w-full border p-2 text-xs rounded" value={rootNode.properties.tplChapter || 'A'} onChange={e => updateNodeProps(rootNode.id, { tplChapter: e.target.value })}>
-                       <option value="A">Mẫu A (Cổ điển - Viền đứt)</option>
-                       <option value="B">Mẫu B (Hiện đại - Khối màu)</option>
-                       {customChapterTpls.map(t => (<option key={t.id} value={t.id}>{t.name}</option>))}
+                    <select className="w-full border p-2 text-xs rounded outline-none focus:border-blue-500" value={rootNode.properties.tplChapter || 'A'} onChange={e => updateNodeProps(rootNode.id, { tplChapter: e.target.value })}>
+                       <optgroup label="--- MẪU TRUYỀN THỐNG ---">
+                          <option value="A">Mẫu A (Cổ điển - Viền đứt)</option>
+                          <option value="B">Mẫu B (Hiện đại - Khối màu)</option>
+                       </optgroup>
+                       <optgroup label="--- MẪU CHUẨN SÁCH GIÁO KHOA ---">
+                          <option value="chap_style_1">1. Lục Giác (Cơ học)</option>
+                          <option value="chap_style_2">2. Tròn Kép (Nhiệt học)</option>
+                          <option value="chap_style_3">3. Ruy Băng (Điện học)</option>
+                          <option value="chap_style_4">4. Hình Nghiêng (Sóng)</option>
+                          <option value="chap_style_5">5. Tia Sáng (Quang học)</option>
+                          <option value="chap_style_6">6. Dải Băng (Hiện đại)</option>
+                       </optgroup>
+                       <optgroup label="--- MẪU LINH HOẠT (TỰ TẠO) ---">
+                          {customChapterTpls.map(t => (<option key={t.id} value={t.id}>🎨 {t.name}</option>))}
+                       </optgroup>
                     </select>
                     {renderTemplateActions('Chapter', rootNode.properties.tplChapter)}
                   </div>
                   <div>
                     <label className="block text-[11px] font-bold text-gray-500 mb-1">Mẫu Bài Học (Lesson)</label>
-                    <select className="w-full border p-2 text-xs rounded" value={rootNode.properties.tplLesson || 'A'} onChange={e => updateNodeProps(rootNode.id, { tplLesson: e.target.value })}>
-                       <option value="A">Mẫu A (Đổ bóng 3D)</option>
-                       <option value="B">Mẫu B (Tối giản - Bo tròn)</option>
-                       {customLessonTpls.map(t => (<option key={t.id} value={t.id}>{t.name}</option>))}
+                    <select className="w-full border p-2 text-xs rounded outline-none focus:border-blue-500" value={rootNode.properties.tplLesson || 'A'} onChange={e => updateNodeProps(rootNode.id, { tplLesson: e.target.value })}>
+                       <optgroup label="--- MẪU TRUYỀN THỐNG ---">
+                          <option value="A">Mẫu A (Đổ bóng 3D)</option>
+                          <option value="B">Mẫu B (Tối giản - Bo tròn)</option>
+                       </optgroup>
+                       <optgroup label="--- MẪU CHUẨN SÁCH GIÁO KHOA ---">
+                          <option value="less_ribbon_pen">Mẫu Ruy Băng Bút</option>
+                       </optgroup>
+                       <optgroup label="--- MẪU LINH HOẠT (TỰ TẠO) ---">
+                          {customLessonTpls.map(t => (<option key={t.id} value={t.id}>🎨 {t.name}</option>))}
+                       </optgroup>
                     </select>
                     {renderTemplateActions('Lesson', rootNode.properties.tplLesson)}
                   </div>
                   <div>
                     <label className="block text-[11px] font-bold text-gray-500 mb-1">Mẫu Mục (Section)</label>
-                    <select className="w-full border p-2 text-xs rounded" value={rootNode.properties.tplSection || 'A'} onChange={e => updateNodeProps(rootNode.id, { tplSection: e.target.value })}>
-                       <option value="A">Mẫu A (Có Icon bên trái)</option>
-                       <option value="B">Mẫu B (Gạch dưới toàn phần)</option>
-                       {customSectionTpls.map(t => (<option key={t.id} value={t.id}>{t.name}</option>))}
+                    <select className="w-full border p-2 text-xs rounded outline-none focus:border-blue-500" value={rootNode.properties.tplSection || 'A'} onChange={e => updateNodeProps(rootNode.id, { tplSection: e.target.value })}>
+                       <optgroup label="--- MẪU TRUYỀN THỐNG ---">
+                          <option value="A">Mẫu A (Có Icon bên trái)</option>
+                          <option value="B">Mẫu B (Gạch dưới toàn phần)</option>
+                       </optgroup>
+                       <optgroup label="--- MẪU CHUẨN SÁCH GIÁO KHOA ---">
+                          <option value="sec_star_underline">Mẫu Ngôi Sao Gạch Dưới</option>
+                       </optgroup>
+                       <optgroup label="--- MẪU LINH HOẠT (TỰ TẠO) ---">
+                          {customSectionTpls.map(t => (<option key={t.id} value={t.id}>🎨 {t.name}</option>))}
+                       </optgroup>
                     </select>
                     {renderTemplateActions('Section', rootNode.properties.tplSection)}
                   </div>
@@ -203,7 +231,7 @@ export default function LeftPanel() {
              <Accordion title="Hệ thống Câu hỏi (Vietphys)" defaultOpen={true}>
                 <div className="space-y-3 text-xs mb-4">
                   <label className="block text-[11px] font-bold text-gray-500 mb-1">Tiền tố câu hỏi mặc định</label>
-                  <input type="text" placeholder="Ví dụ: Câu, Bài, Ví dụ..." className="w-full border p-2 text-xs rounded mb-3" value={rootNode.properties.qPrefix || ""} onChange={e => updateNodeProps(rootNode.id, { qPrefix: e.target.value })}/>
+                  <input type="text" placeholder="Ví dụ: Câu, Bài, Ví dụ..." className="w-full border p-2 text-xs rounded mb-3 outline-none focus:border-blue-500" value={rootNode.properties.qPrefix || ""} onChange={e => updateNodeProps(rootNode.id, { qPrefix: e.target.value })}/>
                   <label className="flex items-center gap-2 font-bold text-gray-600 cursor-pointer"><input type="checkbox" checked={rootNode.properties.qShowLevel !== false} onChange={e => updateNodeProps(rootNode.id, { qShowLevel: e.target.checked })} /> Hiển thị Nhãn Mức độ</label>
                   <label className="flex items-center gap-2 font-bold text-gray-600 cursor-pointer"><input type="checkbox" checked={rootNode.properties.qShowSource !== false} onChange={e => updateNodeProps(rootNode.id, { qShowSource: e.target.checked })} /> Hiển thị Nhãn Nguồn</label>
                   <label className="flex items-center gap-2 font-bold text-blue-600 cursor-pointer mt-2 pt-2 border-t"><input type="checkbox" checked={rootNode.properties.qShowAns === true} onChange={e => updateNodeProps(rootNode.id, { qShowAns: e.target.checked })} /> In Bảng Đáp án nhanh (#vp-print-keys)</label>
@@ -223,6 +251,9 @@ export default function LeftPanel() {
     );
   }
 
+  const p = selectedNode.properties || {};
+  const updateProps = (newProps: any) => updateNodeProps(selectedNode.id, newProps);
+
   return (
     <div className="w-[320px] bg-white border-r flex flex-col shadow-2xl z-30 flex-shrink-0 overflow-hidden">
       <QuestionBankModal 
@@ -230,7 +261,6 @@ export default function LeftPanel() {
          onSelect={(qs) => { updateNodeProps(selectedNode.id, { questionData: [...(selectedNode.properties.questionData || []), ...qs] }); }} 
       />
 
-      {/* INPUT FILE ẨN ĐỂ UPLOAD ẢNH */}
       <input type="file" ref={fileInputRef} onChange={handleImageUpload} accept="image/*" className="hidden" />
 
       <div className="p-3 bg-[#333] text-white flex items-center justify-between">
@@ -256,17 +286,17 @@ export default function LeftPanel() {
             {selectedNode.moduleName === "QuestionBlock" && (
                 <Accordion title="Nguồn Câu Hỏi" defaultOpen={true}>
                   <div className="flex bg-gray-200 p-1 rounded gap-1 mb-4">
-                    <button onClick={() => updateNodeProps(selectedNode.id, { mode: 'manual' })} className={`flex-1 py-1.5 text-[10px] rounded font-bold uppercase ${selectedNode.properties.mode !== 'matrix' ? 'bg-white shadow text-blue-600' : 'text-gray-500'}`}>Chọn tay</button>
-                    <button onClick={() => updateNodeProps(selectedNode.id, { mode: 'matrix' })} className={`flex-1 py-1.5 text-[10px] rounded font-bold uppercase ${selectedNode.properties.mode === 'matrix' ? 'bg-white shadow text-blue-600' : 'text-gray-500'}`}>Ma trận</button>
+                    <button onClick={() => updateProps({ mode: 'manual' })} className={`flex-1 py-1.5 text-[10px] rounded font-bold uppercase ${selectedNode.properties.mode !== 'matrix' ? 'bg-white shadow text-blue-600' : 'text-gray-500'}`}>Chọn tay</button>
+                    <button onClick={() => updateProps({ mode: 'matrix' })} className={`flex-1 py-1.5 text-[10px] rounded font-bold uppercase ${selectedNode.properties.mode === 'matrix' ? 'bg-white shadow text-blue-600' : 'text-gray-500'}`}>Ma trận</button>
                   </div>
                   {selectedNode.properties.mode !== 'matrix' ? (
                     <div>
-                      <button onClick={() => setIsQuestionModalOpen(true)} className="w-full py-3 bg-blue-50 hover:bg-blue-100 text-blue-600 border border-blue-200 border-dashed rounded text-xs font-bold mb-3"><i className="fas fa-plus-circle mr-1"></i> Mở Ngân Hàng Câu Hỏi</button>
+                      <button onClick={() => setIsQuestionModalOpen(true)} className="w-full py-3 bg-blue-50 hover:bg-blue-100 text-blue-600 border border-blue-200 border-dashed rounded text-xs font-bold mb-3 transition-colors"><i className="fas fa-plus-circle mr-1"></i> Mở Ngân Hàng Câu Hỏi</button>
                       <div className="space-y-2">
                         {selectedNode.properties.questionData?.map((q: any, i: number) => (
                            <div key={i} className="flex items-center justify-between p-2 bg-gray-50 border rounded text-[10px]">
                               <span className="font-bold text-gray-700 truncate flex-1 pr-2">Câu {i+1}: {q.stem.substring(0,25)}...</span>
-                              <button onClick={() => { const newData = [...selectedNode.properties.questionData]; newData.splice(i, 1); updateNodeProps(selectedNode.id, { questionData: newData }); }} className="text-red-500 hover:text-red-700"><i className="fas fa-trash"></i></button>
+                              <button onClick={() => { const newData = [...selectedNode.properties.questionData]; newData.splice(i, 1); updateProps({ questionData: newData }); }} className="text-red-500 hover:text-red-700"><i className="fas fa-trash"></i></button>
                            </div>
                         ))}
                       </div>
@@ -278,24 +308,24 @@ export default function LeftPanel() {
             {selectedNode.type === "Container" && (
               <Accordion title="Bố cục Container (Layout)" defaultOpen={true}>
                 <div className="flex bg-gray-200 p-1 rounded gap-1 mb-3">
-                    <button onClick={() => updateNodeProps(selectedNode.id, { layoutType: 'flex' })} className={`flex-1 py-1.5 text-[10px] rounded font-bold uppercase ${selectedNode.properties.layoutType !== 'grid' ? 'bg-white shadow text-blue-600' : 'text-gray-500'}`}>Flexbox</button>
-                    <button onClick={() => updateNodeProps(selectedNode.id, { layoutType: 'grid' })} className={`flex-1 py-1.5 text-[10px] rounded font-bold uppercase ${selectedNode.properties.layoutType === 'grid' ? 'bg-white shadow text-blue-600' : 'text-gray-500'}`}>Grid (Lưới)</button>
+                    <button onClick={() => updateProps({ layoutType: 'flex' })} className={`flex-1 py-1.5 text-[10px] rounded font-bold uppercase ${selectedNode.properties.layoutType !== 'grid' ? 'bg-white shadow text-blue-600' : 'text-gray-500'}`}>Flexbox</button>
+                    <button onClick={() => updateProps({ layoutType: 'grid' })} className={`flex-1 py-1.5 text-[10px] rounded font-bold uppercase ${selectedNode.properties.layoutType === 'grid' ? 'bg-white shadow text-blue-600' : 'text-gray-500'}`}>Grid (Lưới)</button>
                 </div>
 
                 {selectedNode.properties.layoutType === 'grid' ? (
                    <div>
                      <label className="block text-[11px] font-bold text-gray-500 mb-1">Cấu trúc Cột (Grid Columns)</label>
-                     <input type="text" className="w-full border p-2 text-xs rounded font-mono outline-none focus:border-blue-500 mb-1" placeholder="VD: auto 1fr auto" value={selectedNode.properties.gridCols || "1fr 1fr"} onChange={e => updateNodeProps(selectedNode.id, { gridCols: e.target.value })}/>
+                     <input type="text" className="w-full border p-2 text-xs rounded font-mono outline-none focus:border-blue-500 mb-1" placeholder="VD: auto 1fr auto" value={selectedNode.properties.gridCols || "1fr 1fr"} onChange={e => updateProps({ gridCols: e.target.value })}/>
                      <span className="text-[9px] text-gray-400">Dùng 'auto' (vừa), '1fr' (chiếm phần dư), hoặc '100pt'.</span>
                    </div>
                 ) : (
                    <div>
                      <label className="block text-[11px] font-bold text-gray-500 mb-1">Hướng Flexbox (Direction)</label>
-                     <select className="w-full border p-2 text-xs bg-gray-50 rounded outline-none" value={selectedNode.properties.direction} onChange={e => updateNodeProps(selectedNode.id, { direction: e.target.value })}><option value="column">↓ Dọc</option><option value="row">→ Ngang</option></select>
+                     <select className="w-full border p-2 text-xs bg-gray-50 rounded outline-none" value={selectedNode.properties.direction} onChange={e => updateProps({ direction: e.target.value })}><option value="column">↓ Dọc</option><option value="row">→ Ngang</option></select>
                    </div>
                 )}
                 
-                <div className="mt-4"><NumberUnitControl label="Khoảng cách giữa (Gap)" value={selectedNode.properties.gap || "0pt"} onChange={(val: string) => updateNodeProps(selectedNode.id, { gap: val })} max={100} /></div>
+                <div className="mt-4"><NumberUnitControl label="Khoảng cách giữa (Gap)" value={selectedNode.properties.gap || "0pt"} onChange={(val: string) => updateProps({ gap: val })} max={100} /></div>
                 
                 <div className="mt-4 pt-4 border-t border-dashed space-y-2">
                    <label className="block text-[11px] font-bold text-purple-600 mb-1"><i className="fas fa-magic"></i> Lưu thành Template</label>
@@ -309,17 +339,71 @@ export default function LeftPanel() {
             {selectedNode.properties.num !== undefined && selectedNode.moduleName !== "QuestionBlock" && (
               <Accordion title="Dữ liệu chính" defaultOpen={true}>
                 <label className="block text-[11px] font-bold text-gray-500 mb-1">Chỉ số (Number)</label>
-                <input type="text" className="w-full border p-2 text-xs mb-3 rounded" value={selectedNode.properties.num} onChange={e => updateNodeProps(selectedNode.id, { num: e.target.value })}/>
+                <input type="text" className="w-full border p-2 text-xs mb-3 rounded outline-none focus:border-blue-500" value={selectedNode.properties.num} onChange={e => updateProps({ num: e.target.value })}/>
                 <label className="block text-[11px] font-bold text-gray-500 mb-1">Tiêu đề (Title)</label>
-                <input type="text" className="w-full border p-2 text-xs mb-3 rounded" value={selectedNode.properties.title} onChange={e => updateNodeProps(selectedNode.id, { title: e.target.value })}/>
+                <input type="text" className="w-full border p-2 text-xs mb-3 rounded outline-none focus:border-blue-500" value={selectedNode.properties.title} onChange={e => updateProps({ title: e.target.value })}/>
                 
+                {/* 🌟 CÁC THÔNG SỐ TÙY BIẾN CHO TEMPLATE SGK 🌟 */}
+                {['Chapter', 'Lesson', 'Section'].includes(selectedNode.moduleName) && (
+                  <div className="mt-1 mb-4 p-3 bg-gray-50 border rounded-md shadow-inner">
+                    <label className="block text-[11px] font-bold text-blue-600 mb-2 border-b pb-1"><i className="fas fa-paint-brush"></i> Tùy biến Template (Màu, Font...)</label>
+                    <div className="grid grid-cols-2 gap-2 mb-2">
+                       <div>
+                         <label className="block text-[9px] text-gray-500 font-bold mb-1">Màu chủ đạo</label>
+                         <input type="color" className="w-full h-7 border p-0 cursor-pointer rounded" value={selectedNode.properties.color || '#1890FF'} onChange={e => updateProps({ color: e.target.value })}/>
+                       </div>
+                       <div>
+                         <label className="block text-[9px] text-gray-500 font-bold mb-1">Font chữ</label>
+                         <input type="text" className="w-full border p-1 text-[10px] rounded outline-none focus:border-blue-500" placeholder="VD: Arial" value={selectedNode.properties.fontFamily || ''} onChange={e => updateProps({ fontFamily: e.target.value })}/>
+                       </div>
+                    </div>
+                    <div className="grid grid-cols-2 gap-2">
+                       <div>
+                         <label className="block text-[9px] text-gray-500 font-bold mb-1">Cỡ chữ SỐ</label>
+                         <input type="text" className="w-full border p-1 text-[10px] rounded outline-none focus:border-blue-500" placeholder="VD: 26pt" value={selectedNode.properties.numSize || ''} onChange={e => updateProps({ numSize: e.target.value })}/>
+                       </div>
+                       <div>
+                         <label className="block text-[9px] text-gray-500 font-bold mb-1">Cỡ chữ TÊN</label>
+                         <input type="text" className="w-full border p-1 text-[10px] rounded outline-none focus:border-blue-500" placeholder="VD: 30pt" value={selectedNode.properties.titleSize || ''} onChange={e => updateProps({ titleSize: e.target.value })}/>
+                       </div>
+                    </div>
+                  </div>
+                )}
+
                 {['Chapter', 'Lesson', 'Section'].includes(selectedNode.moduleName) && (
                   <div className="pt-3 border-t">
                     <label className="block text-[11px] font-bold text-blue-500 mb-1">Ghi đè Template</label>
-                    <select className="w-full border border-blue-200 bg-blue-50 text-blue-700 p-2 text-xs rounded" value={selectedNode.properties.template || 'global'} onChange={e => updateNodeProps(selectedNode.id, { template: e.target.value })}>
+                    <select className="w-full border border-blue-200 bg-blue-50 text-blue-700 p-2 text-xs rounded outline-none focus:border-blue-500" value={selectedNode.properties.template || 'global'} onChange={e => updateProps({ template: e.target.value })}>
                        <option value="global">Dùng cài đặt Toàn cục</option>
-                       <option value="A">Ép dùng Mẫu A</option>
-                       <option value="B">Ép dùng Mẫu B</option>
+                       
+                       <optgroup label="--- MẪU TRUYỀN THỐNG ---">
+                          <option value="A">Ép dùng Mẫu A</option>
+                          <option value="B">Ép dùng Mẫu B</option>
+                       </optgroup>
+
+                       {/* MẪU CỨNG MỚI */}
+                       {selectedNode.moduleName === 'Chapter' && (
+                         <optgroup label="--- MẪU CHUẨN SÁCH GIÁO KHOA ---">
+                           <option value="chap_style_1">Ép dùng 1. Lục Giác</option>
+                           <option value="chap_style_2">Ép dùng 2. Tròn Kép</option>
+                           <option value="chap_style_3">Ép dùng 3. Ruy Băng</option>
+                           <option value="chap_style_4">Ép dùng 4. Hình Nghiêng</option>
+                           <option value="chap_style_5">Ép dùng 5. Tia Sáng</option>
+                           <option value="chap_style_6">Ép dùng 6. Dải Băng</option>
+                         </optgroup>
+                       )}
+                       {selectedNode.moduleName === 'Lesson' && (
+                         <optgroup label="--- MẪU CHUẨN SÁCH GIÁO KHOA ---">
+                           <option value="less_ribbon_pen">Ép dùng Mẫu Ruy Băng Bút</option>
+                         </optgroup>
+                       )}
+                       {selectedNode.moduleName === 'Section' && (
+                         <optgroup label="--- MẪU CHUẨN SÁCH GIÁO KHOA ---">
+                           <option value="sec_star_underline">Ép dùng Mẫu Ngôi Sao</option>
+                         </optgroup>
+                       )}
+
+                       {/* MẪU LINH HOẠT TỰ TẠO */}
                        {selectedNode.moduleName === 'Chapter' && customChapterTpls.map(t => (<option key={t.id} value={t.id}>Ép dùng {t.name}</option>))}
                        {selectedNode.moduleName === 'Lesson' && customLessonTpls.map(t => (<option key={t.id} value={t.id}>Ép dùng {t.name}</option>))}
                        {selectedNode.moduleName === 'Section' && customSectionTpls.map(t => (<option key={t.id} value={t.id}>Ép dùng {t.name}</option>))}
@@ -331,13 +415,13 @@ export default function LeftPanel() {
 
             {selectedNode.properties.content !== undefined && selectedNode.moduleName !== "QuestionBlock" && (
               <Accordion title={selectedNode.moduleName === "Image" ? "Nguồn Ảnh" : "Văn bản & Định dạng"} defaultOpen={true}>
-                {selectedNode.moduleName === "Text" ? (<MiniRichTextEditor value={selectedNode.properties.content} onChange={(val: string) => updateNodeProps(selectedNode.id, { content: val })} />) : (<textarea className="w-full border p-2 text-xs rounded min-h-[100px] custom-scrollbar" value={selectedNode.properties.content} onChange={e => updateNodeProps(selectedNode.id, { content: e.target.value })} />)}
+                {selectedNode.moduleName === "Text" ? (<MiniRichTextEditor value={selectedNode.properties.content} onChange={(val: string) => updateProps({ content: val })} />) : (<textarea className="w-full border p-2 text-xs rounded min-h-[100px] custom-scrollbar outline-none focus:border-blue-500" value={selectedNode.properties.content} onChange={e => updateProps({ content: e.target.value })} />)}
               </Accordion>
             )}
 
             {selectedNode.properties.width !== undefined && selectedNode.moduleName === "Image" && (
               <Accordion title="Kích thước ảnh" defaultOpen={true}>
-                  <NumberUnitControl label="Độ rộng (%)" value={`${selectedNode.properties.width}%`} onChange={(val: string) => updateNodeProps(selectedNode.id, { width: val.replace('%','') })} min={10} max={100} />
+                  <NumberUnitControl label="Độ rộng (%)" value={`${selectedNode.properties.width}%`} onChange={(val: string) => updateProps({ width: val.replace('%','') })} min={10} max={100} />
               </Accordion>
             )}
 
@@ -346,7 +430,7 @@ export default function LeftPanel() {
                 <label className="block text-[11px] font-bold text-gray-500 mb-2">Chọn Icon</label>
                 <div className="grid grid-cols-5 gap-2">
                   {['fa-star', 'fa-bolt', 'fa-check', 'fa-pen', 'fa-info-circle', 'fa-exclamation-triangle', 'fa-bookmark', 'fa-lightbulb', 'fa-tasks', 'fa-graduation-cap', 'fa-book-open', 'fa-arrow-right', 'fa-arrow-left', 'fa-arrow-up', 'fa-arrow-down'].map(ic => (
-                    <button key={ic} onClick={() => updateNodeProps(selectedNode.id, { iconName: ic })} title={ic} className={`p-2 border rounded hover:bg-gray-100 flex justify-center items-center ${selectedNode.properties.iconName === ic ? 'bg-blue-100 border-blue-500 shadow-inner' : ''}`}>
+                    <button key={ic} onClick={() => updateProps({ iconName: ic })} title={ic} className={`p-2 border rounded hover:bg-gray-100 flex justify-center items-center ${selectedNode.properties.iconName === ic ? 'bg-blue-100 border-blue-500 shadow-inner' : ''}`}>
                         <i className={`fas ${ic} text-gray-700 text-lg`}></i>
                     </button>
                   ))}
@@ -368,42 +452,41 @@ export default function LeftPanel() {
                 <div className="grid grid-cols-2 gap-2 mb-1">
                    <div>
                      <label className="block text-[10px] font-bold text-gray-500 mb-1">Độ rộng (Width)</label>
-                     <input type="text" className="w-full border p-2 text-xs rounded" placeholder="100%, auto" value={selectedNode.properties.width || "100%"} onChange={e => updateNodeProps(selectedNode.id, { width: e.target.value })}/>
+                     <input type="text" className="w-full border p-2 text-xs rounded outline-none focus:border-blue-500" placeholder="100%, auto" value={selectedNode.properties.width || "100%"} onChange={e => updateProps({ width: e.target.value })}/>
                    </div>
                    <div>
                      <label className="block text-[10px] font-bold text-gray-500 mb-1">Chiều cao (Height)</label>
-                     <input type="text" className="w-full border p-2 text-xs rounded" placeholder="auto, 50pt, 100%" value={selectedNode.properties.height || "auto"} onChange={e => updateNodeProps(selectedNode.id, { height: e.target.value })}/>
+                     <input type="text" className="w-full border p-2 text-xs rounded outline-none focus:border-blue-500" placeholder="auto, 50pt, 100%" value={selectedNode.properties.height || "auto"} onChange={e => updateProps({ height: e.target.value })}/>
                    </div>
                 </div>
             </Accordion>
 
             {selectedNode.properties.color !== undefined && selectedNode.moduleName !== "QuestionBlock" && (
               <Accordion title="Màu sắc (Color)" defaultOpen={true}>
-                <ColorControl label="Theme Color" value={selectedNode.properties.color} onChange={(val: string) => updateNodeProps(selectedNode.id, { color: val })} />
+                <ColorControl label="Theme Color" value={selectedNode.properties.color} onChange={(val: string) => updateProps({ color: val })} />
               </Accordion>
             )}
 
             {selectedNode.type === "Container" && (
               <>
-                {/* 🌟 VŨ KHÍ BÍ MẬT: GIAO DIỆN UPLOAD ẢNH VÀ CHỈNH PATTERN 🌟 */}
                 <Accordion title="Nền (Background)">
                   <div className="flex bg-gray-200 p-1 rounded gap-1 mb-4">
-                    <button onClick={() => updateNodeProps(selectedNode.id, { bgType: 'solid' })} className={`flex-1 py-1.5 text-[10px] rounded font-bold uppercase ${selectedNode.properties.bgType === 'solid' || !selectedNode.properties.bgType ? 'bg-white shadow text-gray-800' : 'text-gray-500 hover:bg-gray-300'}`}>Màu Đơn</button>
-                    <button onClick={() => updateNodeProps(selectedNode.id, { bgType: 'gradient' })} className={`flex-1 py-1.5 text-[10px] rounded font-bold uppercase ${selectedNode.properties.bgType === 'gradient' ? 'bg-white shadow text-gray-800' : 'text-gray-500 hover:bg-gray-300'}`}>Gradient</button>
-                    <button onClick={() => updateNodeProps(selectedNode.id, { bgType: 'image' })} className={`flex-1 py-1.5 text-[10px] rounded font-bold uppercase ${selectedNode.properties.bgType === 'image' ? 'bg-white shadow text-gray-800' : 'text-gray-500 hover:bg-gray-300'}`}>Ảnh Nền</button>
+                    <button onClick={() => updateProps({ bgType: 'solid' })} className={`flex-1 py-1.5 text-[10px] rounded uppercase font-bold ${selectedNode.properties.bgType === 'solid' || !selectedNode.properties.bgType ? 'bg-white shadow text-gray-800' : 'text-gray-500 hover:bg-gray-300'}`}>Màu Đơn</button>
+                    <button onClick={() => updateProps({ bgType: 'gradient' })} className={`flex-1 py-1.5 text-[10px] rounded uppercase font-bold ${selectedNode.properties.bgType === 'gradient' ? 'bg-white shadow text-gray-800' : 'text-gray-500 hover:bg-gray-300'}`}>Gradient</button>
+                    <button onClick={() => updateProps({ bgType: 'image' })} className={`flex-1 py-1.5 text-[10px] rounded uppercase font-bold ${selectedNode.properties.bgType === 'image' ? 'bg-white shadow text-gray-800' : 'text-gray-500 hover:bg-gray-300'}`}>Ảnh Nền</button>
                   </div>
                   
                   {(!selectedNode.properties.bgType || selectedNode.properties.bgType === 'solid') && (
-                    <ColorControl label="Màu nền (Solid)" value={selectedNode.properties.bg} onChange={(val: string) => updateNodeProps(selectedNode.id, { bg: val })} />
+                    <ColorControl label="Màu nền (Solid)" value={selectedNode.properties.bg} onChange={(val: string) => updateProps({ bg: val })} />
                   )}
 
                   {selectedNode.properties.bgType === 'gradient' && (
                     <div className="space-y-3 mt-3">
-                      <ColorControl label="Màu Bắt đầu (Start)" value={selectedNode.properties.bgGradientStart || "#1890FF"} onChange={(val: string) => updateNodeProps(selectedNode.id, { bgGradientStart: val })} />
-                      <ColorControl label="Màu Kết thúc (End)" value={selectedNode.properties.bgGradientEnd || "#722ED1"} onChange={(val: string) => updateNodeProps(selectedNode.id, { bgGradientEnd: val })} />
+                      <ColorControl label="Màu Bắt đầu (Start)" value={selectedNode.properties.bgGradientStart || "#1890FF"} onChange={(val: string) => updateProps({ bgGradientStart: val })} />
+                      <ColorControl label="Màu Kết thúc (End)" value={selectedNode.properties.bgGradientEnd || "#722ED1"} onChange={(val: string) => updateProps({ bgGradientEnd: val })} />
                       <div>
                         <label className="block text-[10px] font-bold text-gray-500 mb-1">Góc đổ màu (Angle: {selectedNode.properties.gradientAngle || 135}°)</label>
-                        <input type="range" min="0" max="360" className="w-full accent-blue-500" value={selectedNode.properties.gradientAngle || 135} onChange={e => updateNodeProps(selectedNode.id, { gradientAngle: parseInt(e.target.value) })}/>
+                        <input type="range" min="0" max="360" className="w-full accent-blue-500" value={selectedNode.properties.gradientAngle || 135} onChange={e => updateProps({ gradientAngle: parseInt(e.target.value) })}/>
                       </div>
                     </div>
                   )}
@@ -419,12 +502,12 @@ export default function LeftPanel() {
                          className="w-full border p-2 text-[9px] font-mono rounded outline-none focus:border-blue-500 resize-y min-h-[70px] custom-scrollbar" 
                          placeholder='Dán tự do mọi thứ vào đây: Link (/bg.svg), code SVG thuần <svg...>, Code CSS background-image: url(...), hoặc Base64.' 
                          value={selectedNode.properties.bgImage || ""} 
-                         onChange={e => updateNodeProps(selectedNode.id, { bgImage: e.target.value })}
+                         onChange={e => updateProps({ bgImage: e.target.value })}
                        />
                        
                        <div>
                          <label className="block text-[10px] font-bold text-gray-500 mb-1">Chế độ hiển thị (Display)</label>
-                         <select className="w-full border p-2 text-xs rounded outline-none" value={selectedNode.properties.bgImageDisplay || 'cover'} onChange={e => updateNodeProps(selectedNode.id, { bgImageDisplay: e.target.value })}>
+                         <select className="w-full border p-2 text-xs rounded outline-none" value={selectedNode.properties.bgImageDisplay || 'cover'} onChange={e => updateProps({ bgImageDisplay: e.target.value })}>
                            <option value="cover">Bao phủ toàn bộ (Cover)</option>
                            <option value="contain">Hiển thị trọn vẹn (Contain)</option>
                            <option value="stretch">Kéo giãn vừa khung (Stretch)</option>
@@ -434,8 +517,8 @@ export default function LeftPanel() {
 
                        {selectedNode.properties.bgImageDisplay === 'pattern' && (
                          <div className="grid grid-cols-2 gap-2 pt-2 border-t border-gray-200">
-                           <NumberUnitControl label="Rộng Ô (W)" value={selectedNode.properties.bgPatternW || "60pt"} onChange={(val: string) => updateNodeProps(selectedNode.id, { bgPatternW: val })} max={200} />
-                           <NumberUnitControl label="Cao Ô (H)" value={selectedNode.properties.bgPatternH || "60pt"} onChange={(val: string) => updateNodeProps(selectedNode.id, { bgPatternH: val })} max={200} />
+                           <NumberUnitControl label="Rộng Ô (W)" value={selectedNode.properties.bgPatternW || "60pt"} onChange={(val: string) => updateProps({ bgPatternW: val })} max={200} />
+                           <NumberUnitControl label="Cao Ô (H)" value={selectedNode.properties.bgPatternH || "60pt"} onChange={(val: string) => updateProps({ bgPatternH: val })} max={200} />
                          </div>
                        )}
                     </div>
@@ -445,18 +528,18 @@ export default function LeftPanel() {
                 <Accordion title="Đường Viền & Bo góc (Border)">
                   <div className="flex justify-between items-center mb-3">
                       <label className="text-[11px] font-bold text-gray-500">Tùy chỉnh Cạnh</label>
-                      <button onClick={() => updateNodeProps(selectedNode.id, { borderLinked: selectedNode.properties.borderLinked === false })} className={`text-[10px] px-2 py-1 rounded ${selectedNode.properties.borderLinked !== false ? 'bg-blue-100 text-blue-600' : 'bg-gray-100 text-gray-500'}`}><i className={`fas ${selectedNode.properties.borderLinked !== false ? 'fa-link' : 'fa-unlink'}`}></i> {selectedNode.properties.borderLinked !== false ? 'Viền chung' : 'Từng cạnh'}</button>
+                      <button onClick={() => updateProps({ borderLinked: selectedNode.properties.borderLinked === false })} className={`text-[10px] px-2 py-1 rounded ${selectedNode.properties.borderLinked !== false ? 'bg-blue-100 text-blue-600' : 'bg-gray-100 text-gray-500'}`}><i className={`fas ${selectedNode.properties.borderLinked !== false ? 'fa-link' : 'fa-unlink'}`}></i> {selectedNode.properties.borderLinked !== false ? 'Viền chung' : 'Từng cạnh'}</button>
                   </div>
 
                   {selectedNode.properties.borderLinked !== false ? (
                     <div className="space-y-3">
-                      <select className="w-full border border-gray-300 p-2 text-xs bg-gray-50 rounded outline-none" value={selectedNode.properties.borderStyle} onChange={e => updateNodeProps(selectedNode.id, { borderStyle: e.target.value })}>
+                      <select className="w-full border border-gray-300 p-2 text-xs bg-gray-50 rounded outline-none" value={selectedNode.properties.borderStyle} onChange={e => updateProps({ borderStyle: e.target.value })}>
                         <option value="none">Không viền</option><option value="solid">Nét liền (Solid)</option><option value="dashed">Nét đứt (Dashed)</option><option value="dotted">Chấm bi (Dotted)</option>
                       </select>
                       {selectedNode.properties.borderStyle !== 'none' && selectedNode.properties.borderStyle && (
                         <>
-                          <NumberUnitControl label="Độ dày viền (Width)" value={selectedNode.properties.borderWidth || "1pt"} onChange={(val: string) => updateNodeProps(selectedNode.id, { borderWidth: val })} max={20} />
-                          <ColorControl label="Màu viền (Color)" value={selectedNode.properties.borderColor || "#cccccc"} onChange={(val: string) => updateNodeProps(selectedNode.id, { borderColor: val })} />
+                          <NumberUnitControl label="Độ dày viền (Width)" value={selectedNode.properties.borderWidth || "1pt"} onChange={(val: string) => updateProps({ borderWidth: val })} max={20} />
+                          <ColorControl label="Màu viền (Color)" value={selectedNode.properties.borderColor || "#cccccc"} onChange={(val: string) => updateProps({ borderColor: val })} />
                         </>
                       )}
                     </div>
@@ -466,13 +549,13 @@ export default function LeftPanel() {
                         <div key={side} className="border-b pb-3 mb-3 border-gray-100 last:border-0 last:pb-0 last:mb-0">
                           <label className="block text-[10px] font-bold text-gray-600 uppercase mb-2">Viền {side}</label>
                           <div className="flex gap-2 mb-2">
-                            <select className="flex-1 border p-1 text-xs rounded" value={selectedNode.properties[`border${side}Style`] || 'none'} onChange={e => updateNodeProps(selectedNode.id, { [`border${side}Style`]: e.target.value })}>
+                            <select className="flex-1 border p-1 text-xs rounded" value={selectedNode.properties[`border${side}Style`] || 'none'} onChange={e => updateProps({ [`border${side}Style`]: e.target.value })}>
                               <option value="none">Không</option><option value="solid">Liền</option><option value="dashed">Đứt</option><option value="dotted">Chấm</option>
                             </select>
-                            <input type="number" placeholder="Độ dày (pt)" value={parseFloat(selectedNode.properties[`border${side}Width`]) || 0} onChange={e => updateNodeProps(selectedNode.id, { [`border${side}Width`]: `${e.target.value}pt` })} className="w-16 border p-1 text-xs rounded [&::-webkit-inner-spin-button]:opacity-100" />
+                            <input type="number" placeholder="Độ dày (pt)" value={parseFloat(selectedNode.properties[`border${side}Width`]) || 0} onChange={e => updateProps({ [`border${side}Width`]: `${e.target.value}pt` })} className="w-16 border p-1 text-xs rounded outline-none [&::-webkit-inner-spin-button]:opacity-100" />
                           </div>
                           {selectedNode.properties[`border${side}Style`] !== 'none' && selectedNode.properties[`border${side}Style`] && (
-                            <ColorControl label={`Màu viền ${side}`} value={selectedNode.properties[`border${side}Color`]} onChange={(val: string) => updateNodeProps(selectedNode.id, { [`border${side}Color`]: val })} />
+                            <ColorControl label={`Màu viền ${side}`} value={selectedNode.properties[`border${side}Color`]} onChange={(val: string) => updateProps({ [`border${side}Color`]: val })} />
                           )}
                         </div>
                       ))}
@@ -480,7 +563,7 @@ export default function LeftPanel() {
                   )}
 
                   <div className="mt-4 border-t pt-4">
-                    <FourWaySpacing label="Bo góc (Border Radius)" prefix="radius" properties={selectedNode.properties} onChange={(k:string, v:string) => updateNodeProps(selectedNode.id, { [k]: v })} isRadius={true} />
+                    <FourWaySpacing label="Bo góc (Border Radius)" prefix="radius" properties={selectedNode.properties} onChange={(k:string, v:string) => updateProps({ [k]: v })} isRadius={true} />
                   </div>
                 </Accordion>
               </>
@@ -490,15 +573,15 @@ export default function LeftPanel() {
             {selectedNode.properties.fontSize !== undefined && (
               <Accordion title="Kiểu chữ (Typography)" defaultOpen={true}>
                 <label className="block text-[11px] font-bold text-gray-500 mb-1">Font chữ (Font Family)</label>
-                <input type="text" className="w-full border p-2 text-xs rounded mb-3" placeholder="VD: Arial, Mplus 1c..." value={selectedNode.properties.fontFamily || ""} onChange={e => updateNodeProps(selectedNode.id, { fontFamily: e.target.value })}/>
+                <input type="text" className="w-full border p-2 text-xs rounded mb-3 outline-none focus:border-blue-500" placeholder="VD: Arial, Mplus 1c..." value={selectedNode.properties.fontFamily || ""} onChange={e => updateProps({ fontFamily: e.target.value })}/>
                 
                 <div className="grid grid-cols-2 gap-2 mb-3">
-                  <NumberUnitControl label="Kích thước (Size)" value={`${selectedNode.properties.fontSize}${selectedNode.properties.fontUnit}`} onChange={(val: string) => updateNodeProps(selectedNode.id, { fontSize: parseFloat(val) || 12, fontUnit: val.replace(/[0-9.-]/g, '') || 'pt' })} max={72} />
-                  <NumberUnitControl label="Khoảng cách (Tracking)" value={selectedNode.properties.letterSpacing || "0pt"} onChange={(val: string) => updateNodeProps(selectedNode.id, { letterSpacing: val })} max={20} min={-5} />
+                  <NumberUnitControl label="Kích thước (Size)" value={`${selectedNode.properties.fontSize}${selectedNode.properties.fontUnit}`} onChange={(val: string) => updateProps({ fontSize: parseFloat(val) || 12, fontUnit: val.replace(/[0-9.-]/g, '') || 'pt' })} max={72} />
+                  <NumberUnitControl label="Khoảng cách (Tracking)" value={selectedNode.properties.letterSpacing || "0pt"} onChange={(val: string) => updateProps({ letterSpacing: val })} max={20} min={-5} />
                 </div>
                 
                 <label className="block text-[11px] font-bold text-gray-500 mb-1">Độ đậm (Weight)</label>
-                <select className="w-full border border-gray-300 p-2 text-xs bg-gray-50 rounded outline-none" value={selectedNode.properties.fontWeight} onChange={e => updateNodeProps(selectedNode.id, { fontWeight: e.target.value })}>
+                <select className="w-full border border-gray-300 p-2 text-xs bg-gray-50 rounded outline-none" value={selectedNode.properties.fontWeight} onChange={e => updateProps({ fontWeight: e.target.value })}>
                   <option value="regular">Bình thường (Regular)</option><option value="bold">Đậm (Bold)</option><option value="900">Rất đậm (Black)</option>
                 </select>
               </Accordion>
@@ -508,7 +591,7 @@ export default function LeftPanel() {
               <Accordion title="Căn chỉnh (Alignment)" defaultOpen={true}>
                 <div className="flex bg-gray-200 p-1 rounded gap-1">
                   {['left', 'center', 'right', 'justify'].map(a => (
-                    <button key={a} onClick={() => updateNodeProps(selectedNode.id, { align: a })} className={`flex-1 py-1.5 text-xs rounded transition-colors ${selectedNode.properties.align === a ? 'bg-white shadow text-blue-600' : 'text-gray-500 hover:bg-gray-300'}`}><i className={`fas fa-align-${a}`}></i></button>
+                    <button key={a} onClick={() => updateProps({ align: a })} className={`flex-1 py-1.5 text-xs rounded transition-colors ${selectedNode.properties.align === a ? 'bg-white shadow text-blue-600' : 'text-gray-500 hover:bg-gray-300'}`}><i className={`fas fa-align-${a}`}></i></button>
                   ))}
                 </div>
               </Accordion>
@@ -516,10 +599,10 @@ export default function LeftPanel() {
 
             <Accordion title="Khoảng cách (Spacing)">
               <div className="space-y-6">
-                <FourWaySpacing label="Padding (Lề trong khối)" prefix="padding" properties={selectedNode.properties} onChange={(k:string, v:string) => updateNodeProps(selectedNode.id, { [k]: v })} />
+                <FourWaySpacing label="Padding (Lề trong khối)" prefix="padding" properties={selectedNode.properties} onChange={(k:string, v:string) => updateProps({ [k]: v })} />
                 {selectedNode.moduleName !== "Header" && selectedNode.moduleName !== "Footer" && (
                   <div className="pt-4 border-t border-gray-200">
-                    <FourWaySpacing label="Margin (Khoảng cách bên ngoài)" prefix="margin" properties={selectedNode.properties} onChange={(k:string, v:string) => updateNodeProps(selectedNode.id, { [k]: v })} />
+                    <FourWaySpacing label="Margin (Khoảng cách bên ngoài)" prefix="margin" properties={selectedNode.properties} onChange={(k:string, v:string) => updateProps({ [k]: v })} />
                   </div>
                 )}
               </div>
@@ -527,7 +610,7 @@ export default function LeftPanel() {
             
             <Accordion title="Định vị & Nâng cao">
               <label className="block text-[11px] font-bold text-gray-500 mb-1">Kiểu ghim (Position)</label>
-              <select className="w-full border border-gray-300 p-2 text-xs bg-gray-50 rounded outline-none mb-3" value={selectedNode.properties.position || 'relative'} onChange={e => updateNodeProps(selectedNode.id, { position: e.target.value })}>
+              <select className="w-full border border-gray-300 p-2 text-xs bg-gray-50 rounded outline-none mb-3" value={selectedNode.properties.position || 'relative'} onChange={e => updateProps({ position: e.target.value })}>
                 <option value="relative">Nằm trong luồng (Relative)</option>
                 <option value="absolute">Ghim tự do (Absolute)</option>
               </select>
@@ -537,16 +620,16 @@ export default function LeftPanel() {
                   <div className="grid grid-cols-2 gap-3 mb-2">
                     <div>
                       <label className="block text-[10px] font-bold text-yellow-700 mb-1">Cách Trái (Left)</label>
-                      <input type="text" className="w-full border border-yellow-300 p-1.5 text-xs rounded bg-white text-center font-mono outline-none focus:border-yellow-500" value={selectedNode.properties.left || '0%'} onChange={e => updateNodeProps(selectedNode.id, { left: e.target.value })} placeholder="VD: 50%" />
+                      <input type="text" className="w-full border border-yellow-300 p-1.5 text-xs rounded bg-white text-center font-mono outline-none focus:border-yellow-500" value={selectedNode.properties.left || '0%'} onChange={e => updateProps({ left: e.target.value })} placeholder="VD: 50%" />
                     </div>
                     <div>
                       <label className="block text-[10px] font-bold text-yellow-700 mb-1">Cách Trên (Top)</label>
-                      <input type="text" className="w-full border border-yellow-300 p-1.5 text-xs rounded bg-white text-center font-mono outline-none focus:border-yellow-500" value={selectedNode.properties.top || '0%'} onChange={e => updateNodeProps(selectedNode.id, { top: e.target.value })} placeholder="VD: -10%" />
+                      <input type="text" className="w-full border border-yellow-300 p-1.5 text-xs rounded bg-white text-center font-mono outline-none focus:border-yellow-500" value={selectedNode.properties.top || '0%'} onChange={e => updateProps({ top: e.target.value })} placeholder="VD: -10%" />
                     </div>
                   </div>
                   <div className="pt-2 border-t border-yellow-200">
                     <label className="block text-[10px] font-bold text-yellow-700 mb-1">Z-Index (Độ nổi đè lên nhau)</label>
-                    <input type="number" className="w-full border border-yellow-300 p-1.5 text-xs rounded bg-white outline-none focus:border-yellow-500" value={selectedNode.properties.zIndex || 1} onChange={e => updateNodeProps(selectedNode.id, { zIndex: e.target.value })}/>
+                    <input type="number" className="w-full border border-yellow-300 p-1.5 text-xs rounded bg-white outline-none focus:border-yellow-500" value={selectedNode.properties.zIndex || 1} onChange={e => updateProps({ zIndex: e.target.value })}/>
                   </div>
                 </div>
               )}
