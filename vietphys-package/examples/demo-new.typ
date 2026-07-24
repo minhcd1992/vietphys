@@ -1,4 +1,4 @@
-#import "vietphys.typ": *
+#import "/vietphys-package/vietphys.typ": *
 
 // 1. HEADER DẠNG BANNER PHÁ CÁCH CÓ SHAPE DIVIDER
 #set page(margin: (top: 0cm, left: 1.5cm, right: 1.5cm, bottom: 2cm))

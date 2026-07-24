@@ -1,23 +1,14 @@
-// =================================================================
-// TÊN GÓI: VIETPHYS CORE ENGINE (Lõi Framework v2.0)
-// KIẾN TRÚC: Modular / Component-Based (Sẵn sàng cho Web Builder)
-// =================================================================
+// ==========================================
+// THƯ VIỆN VIETPHYS - GÓI DÀN TRANG SÁCH GIÁO KHOA
+// Kiến trúc sư: Chung Diệu Minh
+// ==========================================
 
-#import "@preview/fontawesome:0.6.2": *
+#import "themes/default_theme.typ": *
+#import "layout/page_setup.typ": *
+#import "layout/header_footer.typ": *
+#import "components/hierarchy.typ": *
+#import "components/knowledge_box.typ": *
+#import "components/media.typ": *
 
-// 1. KÍCH HOẠT THEME & MÀU SẮC
-#import "themes/colors.typ": *
-#import "themes/settings.typ": *
-
-// 2. KÍCH HOẠT LÕI HỆ THỐNG
-#import "legacy/utils.typ": *
-#import "legacy/state.typ": *
-#import "core/layout.typ": *
-
-// 3. KÍCH HOẠT CÁC COMPONENT GIAO DIỆN (UI WIDGETS)
-#import "components/containers.typ": *
-#import "components/typography.typ": *
-#import "components/web_widgets.typ": *
-
-// 4. KÍCH HOẠT ENGINE CÂU HỎI VẬT LÝ
-#import "physics/question_engine.typ": *
+// (Giữ nguyên file question_bank của thầy)
+#import "components/question_bank.typ": *

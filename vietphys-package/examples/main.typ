@@ -1,4 +1,4 @@
-#import "vietphys.typ": *
+#import "/vietphys-package/vietphys.typ": *
 
 // ==========================================
 // CẤU HÌNH TRANG TÀI LIỆU (PAGE SETUP)

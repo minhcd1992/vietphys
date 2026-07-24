@@ -1,8 +1,13 @@
 import React, { useState, useEffect } from "react";
 import { useBuilderStore } from "../../store/builderStore";
-import { generateTypstCode } from "../../utils/typstParser";
+import { generateTypstCode, buildFullTypstDocument } from "../../utils/typst-generators";
 import { renderTypstPreview } from "./UIControls";
-import { hexToRgbA } from "./config";
+
+// Các UI Node vừa tách
+import ChapterNode from '../nodes/ChapterNode';
+import LessonNode from '../nodes/LessonNode';
+import SectionNode from '../nodes/SectionNode';
+import KnowledgeNode from '../nodes/KnowledgeNode';
 
 export default function CanvasArea() {
   const { rootNode, addNode, moveNode, removeNode, selectedNodeId, setSelectedNode } = useBuilderStore();
@@ -15,8 +20,11 @@ export default function CanvasArea() {
   const [customLessonTpls, setCustomLessonTpls] = useState<any[]>([]);
   const [customSectionTpls, setCustomSectionTpls] = useState<any[]>([]);
 
+  // ĐÃ SỬA: Sử dụng kiến trúc Generator mới
   useEffect(() => {
-    setGeneratedTypst(generateTypstCode(rootNode));
+    const rawTypstBody = generateTypstCode(rootNode.children || []);
+    setGeneratedTypst(buildFullTypstDocument(rawTypstBody));
+    
     try {
         const storedChap = localStorage.getItem('vp_custom_chapter_tpls');
         if (storedChap) setCustomChapterTpls(JSON.parse(storedChap));
@@ -37,7 +45,6 @@ export default function CanvasArea() {
   const paddingBottom = getPx(rootNode.properties?.marginBottom);
   const paddingLeft = getPx(rootNode.properties?.marginLeft);
 
-  // 🌟 HÀM BƠM DATA VÀ THEME
   const injectDataToTemplate = (tplNode: any, data: {num?: string, title?: string}, themeProps?: any): any => {
       const clone = JSON.parse(JSON.stringify(tplNode)); 
       const replaceText = (str: string) => {
@@ -82,7 +89,6 @@ export default function CanvasArea() {
     }
   };
 
-  // 🌟 HÀM LƯU GHI ĐÈ TEMPLATE
   const handleSaveTemplate = (e: any, nodeToSave: any, templateType: 'chapter' | 'lesson' | 'section' = 'chapter') => {
     e.stopPropagation();
     const storageKey = `vp_custom_${templateType}_tpls`;
@@ -273,56 +279,13 @@ export default function CanvasArea() {
         ) : (
           <div className="w-full pointer-events-none" style={{ textAlign: p.align || 'left' }}>
             
-            {/* 🌟 MÔ PHỎNG HIỂN THỊ CÁC MẪU CHƯƠNG TRÊN WEB 🌟 */}
+            {/* --- ĐÃ ĐƯỢC TÁCH COMPONENT GỌN GÀNG --- */}
             {node.moduleName === "Chapter" && (() => {
                 const currentTplId = p.template && p.template !== 'global' ? p.template : (rootNode.properties.tplChapter || 'A');
-                
-                if (currentTplId === 'A') return <div className="relative border border-dashed mt-4 mb-2 p-6" style={{ borderColor: themeColor }}><div className="absolute -top-4 left-4 px-3 py-1 text-white text-sm font-bold rounded-sm" style={{ backgroundColor: themeColor }}>Chương {p.num}</div><h1 className="text-2xl font-extrabold uppercase text-center" style={{ color: themeColor }}>{p.title}</h1></div>;
-                if (currentTplId === 'B') return <div className="mt-4 mb-2 p-6 rounded-lg text-center" style={{backgroundColor: themeColor}}><div className="text-white text-sm font-bold opacity-80">CHƯƠNG {p.num}</div><h1 className="text-2xl font-extrabold text-white mt-1 uppercase">{p.title}</h1></div>;
-                
-                // --- 6 MẪU SGK MỚI ---
-                if (currentTplId.startsWith('chap_style_')) {
-                    let svg = "";
-                    let dxNum = "11%", dyNum = "15%", dxTitle = "24%", dyTitle = "35%";
-                    let numColor = themeColor, titleColor = themeColor;
-                    
-                    if (currentTplId === 'chap_style_1') {
-                        svg = `<svg viewBox="0 0 736 100" preserveAspectRatio="none" xmlns="http://www.w3.org/2000/svg"><line x1="120" y1="20" x2="680" y2="20" stroke="${themeColor}" stroke-width="1.5"/><circle cx="700" cy="20" r="2" fill="${themeColor}"/><circle cx="715" cy="20" r="2" fill="${themeColor}"/><circle cx="730" cy="20" r="2" fill="${themeColor}"/><line x1="120" y1="80" x2="690" y2="80" stroke="${themeColor}" stroke-width="1.5"/><polygon points="690,80 730,80 730,50" fill="${themeColor}"/><circle cx="15" cy="50" r="3" fill="none" stroke="${themeColor}" stroke-width="1.5"/><line x1="18" y1="50" x2="40" y2="50" stroke="${themeColor}" stroke-width="1.5"/><polygon points="40,50 60,15 110,15 130,50 110,85 60,85" fill="white" stroke="${themeColor}" stroke-width="3"/></svg>`;
-                        dxNum = "7%"; dyNum = "15%"; dxTitle = "24%"; dyTitle = "35%";
-                    } else if (currentTplId === 'chap_style_2') {
-                        svg = `<svg viewBox="0 0 736 100" preserveAspectRatio="none" xmlns="http://www.w3.org/2000/svg"><rect x="85" y="15" width="640" height="70" rx="15" fill="white" stroke="${themeColor}" stroke-width="1.5"/><path d="M 685 15 L 710 15 A 15 15 0 0 1 725 30 L 725 85 A 15 15 0 0 1 710 100 L 685 100 Z" fill="${themeColor}" opacity="0.3"/><path d="M 705 45 v 20 a 8 8 0 1 0 10 0 v -20 a 5 5 0 0 0 -10 0 z" fill="none" stroke="${themeColor}" stroke-width="2"/><circle cx="680" cy="25" r="2" fill="${themeColor}"/><circle cx="690" cy="25" r="2" fill="${themeColor}"/><circle cx="700" cy="25" r="2" fill="${themeColor}"/><circle cx="85" cy="50" r="40" fill="white" stroke="${themeColor}" stroke-width="3"/><path d="M 85 0 A 50 50 0 0 0 35 50 A 50 50 0 0 0 85 100" fill="none" stroke="${themeColor}" stroke-width="3"/><circle cx="85" cy="0" r="3" fill="${themeColor}"/><circle cx="85" cy="100" r="3" fill="${themeColor}"/></svg>`;
-                        dxNum = "5%"; dyNum = "22%"; dxTitle = "22%"; dyTitle = "35%";
-                    } else if (currentTplId === 'chap_style_3') {
-                        svg = `<svg viewBox="0 0 736 100" preserveAspectRatio="none" xmlns="http://www.w3.org/2000/svg"><rect x="35" y="25" width="690" height="60" fill="white" stroke="${themeColor}" stroke-width="1.5"/><line x1="35" y1="85" x2="500" y2="85" stroke="white" stroke-width="3"/><line x1="35" y1="85" x2="500" y2="85" stroke="${themeColor}" stroke-width="1.5" stroke-dasharray="8 4"/><polygon points="35,0 120,0 120,70 77.5,95 35,70" fill="${themeColor}"/><polygon points="25,10 35,10 35,25 25,10" fill="${themeColor}" opacity="0.6"/><circle cx="670" cy="45" r="10" fill="none" stroke="${themeColor}" stroke-width="1.5"/><text x="670" y="49" font-family="Arial" font-size="10" font-weight="bold" fill="${themeColor}" text-anchor="middle">V</text><path d="M 620 70 l 10 0 l 5 -10 l 10 20 l 10 -20 l 10 20 l 5 -10 l 10 0" fill="none" stroke="${themeColor}" stroke-width="1.5"/><line x1="670" y1="55" x2="670" y2="70" stroke="${themeColor}" stroke-width="1.5"/></svg>`;
-                        dxNum = "4.5%"; dyNum = "15%"; dxTitle = "22%"; dyTitle = "40%";
-                        numColor = "white"; titleColor = "#333";
-                    } else if (currentTplId === 'chap_style_4') {
-                        svg = `<svg viewBox="0 0 736 100" preserveAspectRatio="none" xmlns="http://www.w3.org/2000/svg"><line x1="140" y1="20" x2="720" y2="20" stroke="${themeColor}" stroke-width="1.5"/><circle cx="725" cy="20" r="2.5" fill="${themeColor}"/><path d="M 620 80 l 15 -15 l 20 30 l 20 -30 l 15 15 l 20 0" fill="none" stroke="${themeColor}" stroke-width="1.5"/><line x1="620" y1="80" x2="160" y2="80" stroke="${themeColor}" stroke-width="1.5"/><polygon points="30,90 60,10 140,10 110,90" fill="${themeColor}"/><line x1="145" y1="20" x2="120" y2="80" stroke="${themeColor}" stroke-width="1.5"/><path d="M 115 95 l 10 -10 m 5 10 l 10 -10 m 5 10 l 10 -10 m 5 10 l 10 -10 m 5 10 l 10 -10" fill="none" stroke="${themeColor}" stroke-width="2" opacity="0.4"/></svg>`;
-                        dxNum = "6%"; dyNum = "22%"; dxTitle = "26%"; dyTitle = "35%";
-                        numColor = "white";
-                    } else if (currentTplId === 'chap_style_5') {
-                        svg = `<svg viewBox="0 0 736 100" preserveAspectRatio="none" xmlns="http://www.w3.org/2000/svg"><line x1="110" y1="20" x2="720" y2="20" stroke="${themeColor}" stroke-width="1.5"/><circle cx="725" cy="20" r="2.5" fill="${themeColor}"/><line x1="110" y1="80" x2="600" y2="80" stroke="${themeColor}" stroke-width="1.5"/><circle cx="610" cy="80" r="1.5" fill="${themeColor}"/><circle cx="620" cy="80" r="1.5" fill="${themeColor}"/><circle cx="630" cy="80" r="1.5" fill="${themeColor}"/><circle cx="640" cy="80" r="1.5" fill="${themeColor}"/><circle cx="85" cy="50" r="35" fill="white" stroke="${themeColor}" stroke-width="2"/><circle cx="85" cy="50" r="43" fill="none" stroke="${themeColor}" stroke-width="1.5" stroke-dasharray="4 4"/><circle cx="85" cy="50" r="50" fill="none" stroke="${themeColor}" stroke-width="1.5"/><circle cx="35" cy="50" r="2.5" fill="${themeColor}"/><circle cx="85" cy="100" r="2.5" fill="${themeColor}"/><path d="M 680 50 l 40 0 M 700 30 l 0 40 M 686 36 l 28 28 M 686 64 l 28 -28" fill="none" stroke="${themeColor}" stroke-width="1.5"/></svg>`;
-                        dxNum = "5%"; dyNum = "22%"; dxTitle = "24%"; dyTitle = "35%";
-                        titleColor = "#333";
-                    } else if (currentTplId === 'chap_style_6') {
-                        svg = `<svg viewBox="0 0 736 100" preserveAspectRatio="none" xmlns="http://www.w3.org/2000/svg"><rect x="60" y="25" width="650" height="60" fill="white" stroke="${themeColor}" stroke-width="1.5"/><path d="M 660 15 l -15 10 m -5 -10 l -15 10 m -5 -10 l -30 0" fill="none" stroke="${themeColor}" stroke-width="4" opacity="0.6"/><polygon points="35,10 110,10 110,95 72.5,75 35,95" fill="${themeColor}"/><polygon points="110,10 120,10 110,25" fill="${themeColor}" opacity="0.6"/><ellipse cx="670" cy="55" rx="15" ry="6" transform="rotate(30 670 55)" fill="none" stroke="${themeColor}" stroke-width="1.5"/><ellipse cx="670" cy="55" rx="15" ry="6" transform="rotate(90 670 55)" fill="none" stroke="${themeColor}" stroke-width="1.5"/><ellipse cx="670" cy="55" rx="15" ry="6" transform="rotate(150 670 55)" fill="none" stroke="${themeColor}" stroke-width="1.5"/><circle cx="670" cy="55" r="2" fill="${themeColor}"/><circle cx="670" cy="95" r="2" fill="${themeColor}"/><circle cx="680" cy="95" r="2" fill="${themeColor}"/><circle cx="690" cy="95" r="2" fill="${themeColor}"/></svg>`;
-                        dxNum = "4.5%"; dyNum = "20%"; dxTitle = "22%"; dyTitle = "40%";
-                        numColor = "white"; titleColor = "#333";
-                    }
-
-                    const bgUrl = `url('data:image/svg+xml;base64,${btoa(unescape(encodeURIComponent(svg)))}')`;
-
-                    return (
-                        <div className="relative w-full h-[90px] mt-4 mb-2 overflow-hidden bg-transparent flex items-center" style={{ backgroundImage: bgUrl, backgroundSize: '100% 100%', backgroundRepeat: 'no-repeat' }}>
-                            <div className="absolute text-center flex flex-col items-center w-[80px]" style={{ color: numColor, left: dxNum, top: dyNum }}>
-                                <div className="text-[10px] font-bold">CHƯƠNG</div>
-                                <div className="font-bold leading-none" style={{ fontSize: p.numSize?.replace('pt','px') || '30px' }}>{p.num}</div>
-                            </div>
-                            <div className="absolute font-bold uppercase" style={{ color: titleColor, left: dxTitle, top: dyTitle, fontSize: p.titleSize?.replace('pt','px') || '24px' }}>{p.title}</div>
-                        </div>
-                    );
+                if (currentTplId.startsWith('chap_') || currentTplId === 'A' || currentTplId === 'B') {
+                    // Để ChapterNode mới tạo tự xử lý file SVG
+                    return <ChapterNode node={node} />
                 }
-
                 const customTpl = customChapterTpls.find(t => t.id === currentTplId);
                 if (customTpl && customTpl.nodeData) {
                     const virtualNode = injectDataToTemplate(customTpl.nodeData, { num: p.num, title: p.title }, p);
@@ -333,13 +296,9 @@ export default function CanvasArea() {
             
             {node.moduleName === "Lesson" && (() => {
                 const currentTplId = p.template && p.template !== 'global' ? p.template : (rootNode.properties.tplLesson || 'A');
-                if (currentTplId === 'A') return <div className="p-3 text-white font-bold flex items-center gap-3 mt-2 shadow-[3px_3px_0px_rgba(0,0,0,0.2)]" style={{ backgroundColor: themeColor, borderLeft: `6px solid #FF7A1D` }}><i className="fas fa-pen text-lg"></i> <span className="text-lg">BÀI {p.num}: {p.title}</span></div>;
-                if (currentTplId === 'B') return <div className="p-2.5 font-bold text-center mt-2 rounded-full border-2" style={{ borderColor: themeColor, color: themeColor, backgroundColor: hexToRgbA(themeColor, 0.1) }}><span className="text-lg">BÀI {p.num}: {p.title}</span></div>;
-                
-                if (currentTplId === 'less_ribbon_pen') {
-                   return <div className="p-3 text-white font-bold flex items-center gap-3 mt-2 shadow-[3px_3px_0px_rgba(0,0,0,0.2)]" style={{ backgroundColor: themeColor, borderLeft: `6px solid #FF3B1D` }}><i className="fas fa-pen text-lg"></i> <span style={{ fontSize: p.titleSize?.replace('pt','px') || '18px' }}>BÀI {p.num}: {p.title}</span></div>;
+                if (currentTplId.startsWith('less_') || currentTplId === 'A' || currentTplId === 'B') {
+                    return <LessonNode node={node} currentTplId={currentTplId} themeColor={themeColor} />
                 }
-
                 const customTpl = customLessonTpls.find(t => t.id === currentTplId);
                 if (customTpl && customTpl.nodeData) {
                     const virtualNode = injectDataToTemplate(customTpl.nodeData, { num: p.num, title: p.title }, p);
@@ -350,13 +309,9 @@ export default function CanvasArea() {
             
             {node.moduleName === "Section" && (() => {
                 const currentTplId = p.template && p.template !== 'global' ? p.template : (rootNode.properties.tplSection || 'A');
-                if (currentTplId === 'A') return <div className="flex items-center gap-3 mt-4 mb-2"><div className="w-8 h-8 rounded flex items-center justify-center text-white flex-shrink-0" style={{ backgroundColor: themeColor }}><i className="fas fa-star"></i></div><div className="flex-1 border-b-2 pb-1 font-bold text-lg uppercase" style={{ borderColor: `${themeColor}60`, color: themeColor }}>{p.num}. {p.title}</div></div>;
-                if (currentTplId === 'B') return <div className="mt-4 mb-2 border-b-2 pb-2 font-bold text-lg uppercase" style={{ borderColor: themeColor, color: themeColor }}>{p.num}. {p.title}</div>;
-                
-                if (currentTplId === 'sec_star_underline') {
-                   return <div className="flex items-center gap-3 mt-4 mb-2"><div className="w-8 h-8 rounded flex items-center justify-center text-white flex-shrink-0" style={{ backgroundColor: themeColor }}><i className="fas fa-star"></i></div><div className="flex-1 border-b-2 pb-1 font-bold uppercase" style={{ borderColor: `${themeColor}60`, color: themeColor, fontSize: p.titleSize?.replace('pt','px') || '18px' }}>{p.num}. {p.title}</div></div>;
+                if (currentTplId.startsWith('sec_') || currentTplId === 'A' || currentTplId === 'B') {
+                    return <SectionNode node={node} currentTplId={currentTplId} themeColor={themeColor} />
                 }
-
                 const customTpl = customSectionTpls.find(t => t.id === currentTplId);
                 if (customTpl && customTpl.nodeData) {
                     const virtualNode = injectDataToTemplate(customTpl.nodeData, { num: p.num, title: p.title }, p);
@@ -364,6 +319,8 @@ export default function CanvasArea() {
                 }
                 return <div className="text-red-500 font-bold p-4 border border-red-500 border-dashed">Lỗi: Không tìm thấy Mẫu Tùy Chỉnh!</div>;
             })()}
+
+            {node.moduleName === "KnowledgeBox" && <KnowledgeNode node={node} />}
 
             {/* Các Module cơ bản */}
             {node.moduleName === "Text" && <div className="[&>p]:m-0" style={{ fontFamily: p.fontFamily ? `'${p.fontFamily}', sans-serif` : 'inherit', fontSize: `${p.fontSize}px`, fontWeight: p.fontWeight === 'bold' || p.fontWeight === '900' ? p.fontWeight : 'normal', color: p.color, lineHeight: 1.2, letterSpacing: p.letterSpacing ? p.letterSpacing.replace('pt', 'px') : 'normal' }}>{renderTypstPreview(p.content)}</div>}
@@ -421,7 +378,7 @@ export default function CanvasArea() {
                 onDrop={(e) => { e.preventDefault(); e.stopPropagation(); handleDrop(e, rootNode.id, rootNode.children?.length || 0); }}
               >
                 <DropZone parentId={rootNode.id} index={0} direction={rootNode.properties.direction} />
-                {rootNode.children?.map((child, index) => (
+                {rootNode.children?.map((child: any, index: number) => (
                   <React.Fragment key={child.id}>
                     <RecursiveNode node={child} index={index} />
                     <DropZone parentId={rootNode.id} index={index + 1} direction={rootNode.properties.direction} />
