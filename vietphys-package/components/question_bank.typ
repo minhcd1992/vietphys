@@ -1,8 +1,9 @@
 // =================================================================
-// TÊN GÓI: ENGINE CÂU HỎI VÀ LỜI GIẢI (Core Logic - v1.0 Final)
+// TÊN GÓI: ENGINE CÂU HỎI VÀ LỜI GIẢI (Core Logic - v1.2 Đề Thi)
 // =================================================================
 
 #import "../themes/default_theme.typ": *
+
 
 // -----------------------------------------------------------------
 // 1. KHỞI TẠO STATE & COUNTER
@@ -16,7 +17,7 @@
 
 #let vp-question-theme = (
   mcq: (bg: none, border: none, lines: 0, ans-color: vp-colors.danger, ans-shape: "circle", ans-mark-bg: none, ans-mark-border: rgb("#333"), ans-mark-width: 0.8pt, ans-text-color: rgb("#333"), level-color: vp-colors.primary, source-color: vp-colors.text-muted),
-  tf: (bg: none, border: none, lines: 0, tf-header: rgb("#F5F5F5"), tf-correct-color: vp-colors.success, tf-wrong-color: vp-colors.danger, ans-mark-bg: none, ans-mark-border: rgb("#333"), ans-mark-width: 0.8pt, level-color: vp-colors.primary, source-color: vp-colors.text-muted),
+  tf: (bg: none, border: none, lines: 0, tf-header: rgb("#1A73E8"), tf-correct-color: vp-colors.success, tf-wrong-color: vp-colors.danger, ans-mark-bg: none, ans-mark-border: rgb("#333"), ans-mark-width: 0.8pt, level-color: vp-colors.primary, source-color: vp-colors.text-muted),
   short: (bg: none, border: none, lines: 0, ans-color: vp-colors.danger, level-color: vp-colors.primary, source-color: vp-colors.text-muted),
   essay: (bg: none, border: none, lines: 5, ans-color: vp-colors.danger, level-color: vp-colors.primary, source-color: vp-colors.text-muted),
 )
@@ -69,11 +70,12 @@
     let empty-box = box(width: 12pt, height: 12pt, fill: fill-val, stroke: stroke-size + stroke-color, radius: 2pt)
 
     if style == "table" {
+      let final-header-color = if header-color == auto { white } else { header-color }
       table(
         columns: (1fr, 35pt, 35pt), align: (left+horizon, center+horizon, center+horizon), stroke: 0.5pt + border-color,
-        table.cell(fill: header-bg, align: center, text(fill: header-color, weight: "bold")[Phát biểu]),
-        table.cell(fill: header-bg, align: center, text(fill: header-color, weight: "bold")[Đ]),
-        table.cell(fill: header-bg, align: center, text(fill: header-color, weight: "bold")[S]),
+        table.cell(fill: header-bg, align: center, text(fill: final-header-color, weight: "bold")[Phát biểu]),
+        table.cell(fill: header-bg, align: center, text(fill: final-header-color, weight: "bold")[Đ]),
+        table.cell(fill: header-bg, align: center, text(fill: final-header-color, weight: "bold")[S]),
         ..statements.enumerate().map(((i, s)) => {
           let is-d = show-ans and ans-tf.len() > i and ans-tf.at(i) == "Đ"
           let is-s = show-ans and ans-tf.len() > i and ans-tf.at(i) == "S"
@@ -90,7 +92,7 @@
         #if show-ans and ans-tf.len() > i [
           #let correct = ans-tf.at(i) == "Đ"
           #text(fill: if correct { correct-color } else { wrong-color }, weight: "bold")[ (#if correct [✓ Đ] else [✗ S])]
-        ] else [ #h(4pt) #empty-box Đ #h(4pt) #empty-box S ]
+        ]
         #s \ #v(4pt)
       ]
     }
@@ -115,7 +117,10 @@
 // 3. COMPONENT CHÍNH: CÂU HỎI
 // -----------------------------------------------------------------
 #let vp-question(
-  stem, type: "mcq", options: (), statements: (), ans: none, ans-tf: (), sol: none, level: none, source: none,
+  stem, type: "mcq", options: (), statements: (), ans: none, ans-tf: (), sol: none, level: none, source: none, stem2: none, image-scope: "stem",
+  // TÍNH NĂNG MỚI: Đổi prefix, Thêm điểm số
+  prefix: "Câu", points: none,
+  
   lines: auto, q-bg: auto, q-border: auto, tf-header-bg: auto, ans-color: auto, tf-correct-color: auto, tf-wrong-color: auto, ans-shape: auto, ans-mark-bg: auto, ans-mark-border: auto, ans-mark-width: auto, ans-text-color: auto, level-color: auto, source-color: auto,
   q-radius: 5pt, q-padding: 12pt, q-margin: 6pt, lbl-color: rgb("#1890FF"), lbl-bg: none, lbl-radius: 0pt, lbl-padding: 0pt, icon-before: none, icon-after: none, opt-color: rgb("#333333"), opt-bg: none, opt-border: none, opt-radius: 0pt, opt-padding: 0pt, tf-style: "table", tf-header-color: white, tf-border: rgb("#E8E8E8"), tf-row-bg: none, short-border: rgb("#333333"), short-bg: none, image: none, image-ratio: 0.65, image-gap: 4%, image-side: "right", image-valign: top,
 ) = {
@@ -133,7 +138,7 @@
     let final-bg = if q-bg == auto { theme.at("bg", default: none) } else { q-bg }
     let final-border = if q-border == auto { theme.at("border", default: none) } else { q-border }
     let final-lines = if lines == auto { theme.at("lines", default: 0) } else { lines }
-    let final-tf-header = if tf-header-bg == auto { theme.at("tf-header", default: rgb("#F5F5F5")) } else { tf-header-bg }
+    let final-tf-header = if tf-header-bg == auto { theme.at("tf-header", default: rgb("#1A73E8")) } else { tf-header-bg }
     let final-ans-color = if ans-color == auto { theme.at("ans-color", default: vp-colors.danger) } else { ans-color }
     let final-tf-correct = if tf-correct-color == auto { theme.at("tf-correct-color", default: vp-colors.success) } else { tf-correct-color }
     let final-tf-wrong = if tf-wrong-color == auto { theme.at("tf-wrong-color", default: vp-colors.danger) } else { tf-wrong-color }
@@ -145,67 +150,103 @@
     let final-level-color = if level-color == auto { theme.at("level-color", default: vp-colors.primary) } else { level-color }
     let final-source-color = if source-color == auto { theme.at("source-color", default: vp-colors.text-muted) } else { source-color }
 
+    // Lưu trữ prefix (Câu/Bài) vào Store để in Lời giải
     vp-sol-store.update(arr => {
-      arr.push((num: num, type: type, ans: ans, ans-tf: ans-tf, sol: sol, shown_inline: is-sol))
+      arr.push((num: num, type: type, ans: ans, ans-tf: ans-tf, sol: sol, shown_inline: is-sol, prefix: prefix))
       arr
     })
 
-    let has-visible-source = is-source and source != none
     let final-inset = if final-bg == none and final-border == none { 0pt } else { q-padding }
     let final-outset = if final-bg == none and final-border == none { 0pt } else { q-margin }
 
-    let header-items = ()
-    header-items.push(text(weight: "bold", fill: lbl-color)[#if icon-before != none [#icon-before ] Câu #num:#if icon-after != none [ #icon-after]])
-    if is-level and level != none { header-items.push(text(fill: final-level-color, weight: "bold")[\[#level\]]) }
-    if has-visible-source { header-items.push(text(fill: final-source-color, style: "italic")[\[#source\]]) }
+    let has-visible-level = is-level and level != none
+    let has-visible-source = is-source and source != none
 
-    let q-body = [
-      #block(spacing: 8pt)[#header-items.join("  ")]
-      #block(spacing: 12pt)[#stem]
+    // Xử lý Prefix thông minh (Chống khoảng trắng thừa nếu rỗng)
+    let prefix-str = if prefix != "" and prefix != none [#prefix ] else []
+    let lbl-content = [#if icon-before != none [#icon-before ]#prefix-str#num#if icon-after != none [ #icon-after]]
+
+    // CẬP NHẬT: Hàm đóng gói Nhãn Câu với đầy đủ màu nền và bo góc
+    let _make_styled_lbl(content) = {
+      if lbl-bg != none {
+        // Có màu nền -> Bọc vào box, chỉnh baseline để thẳng hàng với Text
+        box(fill: lbl-bg, radius: lbl-radius, inset: lbl-padding, baseline: 15%, text(weight: "bold", fill: lbl-color)[#content])
+      } else {
+        // Không màu nền -> In text đậm bình thường
+        text(weight: "bold", fill: lbl-color)[#content]
+      }
+    }
+
+    // LOGIC ĐIỀU HƯỚNG HIỂN THỊ (INLINE HOẶC BLOCK)
+    let stem-block = if not has-visible-level and not has-visible-source {
+      // 1. Chế độ Đề thi (Inline): Kéo nội dung lên cùng dòng, nối bằng dấu chấm.
+      let pts-str = if type == "essay" and points != none [ (#points)] else []
+      let final-lbl = _make_styled_lbl([#lbl-content#pts-str.])
+      block(spacing: 12pt)[#final-lbl #stem]
+    } else {
+      // 2. Chế độ Sách giáo khoa (Block): Cắt dòng, chèn Nhãn Level và Nguồn
+      let header-items = ()
+      header-items.push(_make_styled_lbl([#lbl-content:]))
+      if has-visible-level { header-items.push(text(fill: final-level-color, weight: "bold")[\[#level\]]) }
+      if has-visible-source { header-items.push(text(fill: final-source-color, style: "italic")[\[#source\]]) }
+      [#block(spacing: 8pt)[#header-items.join("  ")] #block(spacing: 12pt)[#stem]]
+    }
+
+    let options-block = if type == "mcq" and options.len() > 0 [
+      #let max-w = 0pt
+      #for (i, opt) in options.enumerate() {
+        let size = measure(opt)
+        if size.width > max-w { max-w = size.width }
+      }
       
-      #if type == "mcq" and options.len() > 0 [
-        #let max-w = 0pt
-        #for (i, opt) in options.enumerate() {
-          let size = measure(opt)
-          if size.width > max-w { max-w = size.width }
-        }
-        #let total-w = max-w + 40pt 
-        #let cols-count = if total-w > 7.5cm { 1 } else if total-w > 3.5cm { 2 } else { 4 }
+      #let total-w = max-w + 35pt 
+      #let avail-w = if image != none and image-scope == "full" { 10cm } else { 16cm } 
+      #let cols-count = if total-w * 4 <= avail-w { 4 } else if total-w * 2 <= avail-w { 2 } else { 1 }
 
-        #grid(
-          columns: (1fr,) * cols-count, gutter: 12pt,
-          ..options.enumerate().map(((i, opt)) => {
-            let is-correct = is-ans and ans == str("ABCD".at(i))
-            let letter = str("ABCD".at(i)) + "."
-            let marker = if is-correct {
-              _render-mcq-marker(letter, final-ans-shape, final-ans-mark-bg, final-ans-mark-border, final-ans-mark-width, final-ans-text-color)
-            } else {
-              box(width: 1.6em, height: 1.6em, fill: opt-bg, stroke: opt-border, radius: opt-radius, align(center + horizon)[#text(weight: "bold", fill: opt-color)[#letter]])
-            }
-            let opt-content = if is-correct { text(fill: final-ans-text-color, weight: "bold")[#opt] } else { opt }
-            [ #grid(columns: (auto, 1fr), gutter: 8pt, align: top, marker, box(inset: (top: 0.25em))[#opt-content]) ]
-          })
-        )
-      ] else if type == "tf" [
-        #_render-tf(statements, tf-style, final-tf-header, tf-header-color, tf-border, tf-row-bg, ans-tf, is-ans, final-tf-correct, final-tf-wrong, final-ans-mark-bg, final-ans-mark-border, final-ans-mark-width)
-      ] else if type == "short" [
-        #_render-short-boxes(short-border, short-bg, ans, is-ans, final-ans-color)
-      ] else if type == "essay" [
-        #_render-essay-answer(ans, is-ans, final-ans-color)
-      ]
+      #grid(
+        columns: (1fr,) * cols-count, gutter: 12pt, row-gutter: 12pt,
+        ..options.enumerate().map(((i, opt)) => {
+          let is-correct = is-ans and ans == str("ABCD".at(i))
+          let letter = str("ABCD".at(i)) + "."
+          let marker = if is-correct {
+            _render-mcq-marker(letter, final-ans-shape, final-ans-mark-bg, final-ans-mark-border, final-ans-mark-width, final-ans-text-color)
+          } else {
+            box(width: 1.6em, height: 1.6em, fill: opt-bg, stroke: opt-border, radius: opt-radius, align(center + horizon)[#text(weight: "bold", fill: opt-color)[#letter]])
+          }
+          let opt-content = if is-correct { text(fill: final-ans-text-color, weight: "bold")[#opt] } else { opt }
+          [ #grid(columns: (auto, 1fr), gutter: 8pt, align: (horizon, horizon), marker, opt-content) ]
+        })
+      )
+    ] else if type == "tf" [
+      #_render-tf(statements, tf-style, final-tf-header, tf-header-color, tf-border, tf-row-bg, ans-tf, is-ans, final-tf-correct, final-tf-wrong, final-ans-mark-bg, final-ans-mark-border, final-ans-mark-width)
+    ] else if type == "short" [
+      #_render-short-boxes(short-border, short-bg, ans, is-ans, final-ans-color)
+    ] else if type == "essay" [
+      #_render-essay-answer(ans, is-ans, final-ans-color)
     ]
 
-    let layout-with-image = if image != none {
+    let content-with-image = if image != none {
       let left-col = if image-side == "left" { 1fr * image-ratio } else { 1fr }
       let right-col = if image-side == "left" { 1fr } else { 1fr * image-ratio }
-      grid(columns: (left-col, right-col), gutter: image-gap, align: image-valign,
-        if image-side == "left" { image } else { q-body },
-        if image-side == "left" { q-body } else { image }
-      )
-    } else { q-body }
+      
+      if image-scope == "full" {
+        grid(columns: (left-col, right-col), gutter: image-gap, align: image-valign,
+          if image-side == "left" { image } else { [#stem-block #if stem2 != none [#block(spacing: 12pt)[#stem2]] #options-block] },
+          if image-side == "left" { [#stem-block #if stem2 != none [#block(spacing: 12pt)[#stem2]] #options-block] } else { image }
+        )
+      } else {
+        let top-grid = grid(columns: (left-col, right-col), gutter: image-gap, align: image-valign,
+          if image-side == "left" { image } else { stem-block },
+          if image-side == "left" { stem-block } else { image }
+        )
+        [ #top-grid #if stem2 != none [#block(spacing: 12pt)[#stem2]] #options-block ]
+      }
+    } else {
+      [#stem-block #if stem2 != none [#block(spacing: 12pt)[#stem2]] #options-block]
+    }
 
     let final-content = [
-      #layout-with-image
+      #content-with-image
       #if not is-sol [ #_render-dotlines(final-lines) ]
       #if is-sol and sol != none [
         #v(12pt)
@@ -215,7 +256,8 @@
       ]
     ]
 
-    block(fill: final-bg, stroke: final-border, radius: q-radius, inset: final-inset, outset: final-outset, width: 100%)[#final-content]
+    block(breakable: true, fill: final-bg, stroke: final-border, radius: q-radius, inset: final-inset, outset: final-outset, width: 100%)[#final-content]
+    v(12pt)
   }
 }
 
@@ -230,8 +272,10 @@
       let c-success = vp-colors.at("success", default: rgb("#52C41A"))
       heading(level: 1)[#text(fill: c-success)[#title]]
       for item in arr {
+        // Tự động nhận diện Prefix (Câu / Bài / Ví dụ)
+        let p = item.at("prefix", default: "Câu")
         block(fill: rgb("#F6FFED"), stroke: 1pt + c-success, radius: 4pt, inset: 12pt, width: 100%, breakable: true)[
-          *Câu #item.num:* \ #v(4pt) #item.sol
+          *#p #item.num:* \ #v(4pt) #item.sol
         ]
         v(10pt)
       }
@@ -282,7 +326,7 @@
       }
       
       if shorts.len() > 0 {
-        heading(level: 2)[#text(fill: c-primary)[PHẦN III. TRẢ LỜI NGẮN]]
+        heading(level: 2)[#text(fill: c-primary)[PHẦN III. TRẢ LỜI NGẮN & TỰ LUẬN]]
         table(
           columns: (1fr,) * 4, stroke: table-stroke, align: center + horizon,
           ..shorts.map(it => [ *#it.num.* #text(fill: c-danger, weight: "bold")[#it.ans] ])
