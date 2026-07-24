@@ -1,3 +1,12 @@
+#let vp-colors = (
+  primary: rgb("#1890FF"),
+  success: rgb("#52C41A"),
+  warning: rgb("#FAAD14"),
+  danger: rgb("#FF4D4F"),
+  text-main: rgb("#333333"),
+  border: rgb("#E8E8E8")
+)
+
 #let vp-theme-state = state("vp-theme", (
   mcq:   (bg: none, border: none, lines: 0, tf-header: rgb("#1890FF"), ans-color: rgb("#FF4D4F"), tf-correct-color: rgb("#52C41A"), tf-wrong-color: rgb("#FF4D4F"), ans-shape: "circle", ans-mark-bg: auto, ans-mark-border: rgb("#FF4D4F"), ans-mark-width: 1.5pt, ans-text-color: rgb("#FF4D4F"), level-color: rgb("#FAAD14"), source-color: luma(120)),
   tf:    (bg: none, border: 0.5pt + luma(180), lines: 0, tf-header: rgb("#262626"), ans-color: rgb("#FF4D4F"), tf-correct-color: rgb("#52C41A"), tf-wrong-color: rgb("#FF4D4F"), ans-shape: "circle", ans-mark-bg: auto, ans-mark-border: rgb("#FF4D4F"), ans-mark-width: 1.5pt, ans-text-color: rgb("#FF4D4F"), level-color: rgb("#FAAD14"), source-color: luma(120)),

@@ -10,8 +10,8 @@
 #import "themes/settings.typ": *
 
 // 2. KÍCH HOẠT LÕI HỆ THỐNG
-#import "core/utils.typ": *
-#import "core/state.typ": *
+#import "legacy/utils.typ": *
+#import "legacy/state.typ": *
 #import "core/layout.typ": *
 
 // 3. KÍCH HOẠT CÁC COMPONENT GIAO DIỆN (UI WIDGETS)

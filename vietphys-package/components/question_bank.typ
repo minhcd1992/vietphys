@@ -5,8 +5,8 @@
 // CẤP VŨ KHÍ (IMPORT) CHO ENGINE HOẠT ĐỘNG
 #import "../themes/colors.typ": *
 #import "../themes/settings.typ": *
-#import "../core/state.typ": *
-#import "../core/utils.typ": *
+#import "../legacy/state.typ": *
+#import "../legacy/utils.typ": *
 #import "../components/containers.typ": *
 #import "../components/typography.typ": *
 
